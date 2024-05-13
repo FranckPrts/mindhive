@@ -1,5 +1,6 @@
 import { Dropdown, DropdownMenu } from "semantic-ui-react";
 import DeleteSection from "./DeleteSection";
+import RenameSection from "./RenameSection";
 import { StyledInput } from "../../../../styles/StyledForm";
 
 const sections = {
@@ -42,6 +43,7 @@ export default function SectionHeader({
           <Dropdown direction="left">
             <DropdownMenu>
               <DeleteSection studyId={studyId} sectionId={section?.id} />
+              <RenameSection studyId={studyId} sectionId={section?.id} />
             </DropdownMenu>
           </Dropdown>
         </div>
