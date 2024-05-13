@@ -1,4 +1,12 @@
-import { Dropdown } from "semantic-ui-react";
+import {
+  AccordionTitle,
+  AccordionContent,
+  Accordion,
+  Icon,
+} from "semantic-ui-react";
+
+import { useState, useCallback } from "react";
+import TableInput from "../TableInput"
 
 const marginalPlotsOptions = [
   { value: "", text: "" },
@@ -32,6 +40,13 @@ yRangeMax = js.document.getElementById('yRangeMax-${sectionId}').value
 color = 'pink' if js.document.getElementById('color-${sectionId}') == None else js.document.getElementById('color-${sectionId}').value`
 ;
 
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const handleClick = (e, titleProps) => {
+    const { index } = titleProps;
+    const newIndex = activeIndex === index ? -1 : index;
+    setActiveIndex(newIndex);
+  };
   const updateCode = async ({ code }) => {
     await pyodide.runPythonAsync(connectDashboardCode);
     runCode({ code });
@@ -202,6 +217,30 @@ color = 'pink' if js.document.getElementById('color-${sectionId}') == None else 
           onBlur={() => updateCode({ code })}
         />
       </div>
+      <Accordion>
+        <AccordionTitle
+          active={activeIndex === 0}
+          index={0}
+          onClick={handleClick}
+        >
+          <Icon name="dropdown" />
+          Click here to define your color one-by-one
+        </AccordionTitle>
+        <AccordionContent active={activeIndex === 0}>
+          <div>Tada</div>
+          <TableInput
+            title={title}
+            data={data}
+            variables={variables}
+            variablesOptions={variablesOptions}
+            inputs={inputs}
+            handleChange={handleChange}
+            updateDataset={updateDataset}
+            setIsOpen={setIsOpen}
+            resetForm={resetForm}
+          />
+        </AccordionContent>
+      </Accordion>
     </div>
   );
 }
