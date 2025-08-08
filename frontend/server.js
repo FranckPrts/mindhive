@@ -190,46 +190,57 @@ app
           .map((row) => row.aggregated)
           .reduce((prev, current) => ({ ...prev, ...current }), {});
 
-        await axios({
-          method: "post",
-          url: serverUrl,
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          data: JSON.stringify({
-            query: SAVE_AGGREGATED_RESULTS,
-            operationName: "createSummaryResult",
-            variables: {
-              input: {
-                metadataId: id,
-                data: aggregated,
-                study:
-                  req.query.st === "undefined"
-                    ? null
-                    : { connect: { id: req.query.st } },
-                template:
-                  req.query.te === "undefined"
-                    ? null
-                    : { connect: { id: req.query.te } },
-                task:
-                  req.query.ta === "undefined"
-                    ? null
-                    : { connect: { id: req.query.ta } },
-                user:
-                  req.query.us === "undefined" || req.query.type === "guest"
-                    ? null
-                    : { connect: { id: req.query.us } },
-                guest:
-                  req.query.us === "undefined" || req.query.type === "user"
-                    ? null
-                    : { connect: { id: req.query.us } },
-                type: req.query.type === "guest" ? "GUEST" : "USER",
-                testVersion: req.query.v === "undefined" ? null : req.query.v,
-              },
+        const graphqlPayload = {
+          query: SAVE_AGGREGATED_RESULTS,
+          operationName: "createSummaryResult",
+          variables: {
+            input: {
+              metadataId: id,
+              data: aggregated,
+              study:
+                req.query.st === "undefined"
+                  ? null
+                  : { connect: { id: req.query.st } },
+              template:
+                req.query.te === "undefined"
+                  ? null
+                  : { connect: { id: req.query.te } },
+              task:
+                req.query.ta === "undefined"
+                  ? null
+                  : { connect: { id: req.query.ta } },
+              user:
+                req.query.us === "undefined" || req.query.type === "guest"
+                  ? null
+                  : { connect: { id: req.query.us } },
+              guest:
+                req.query.us === "undefined" || req.query.type === "user"
+                  ? null
+                  : { connect: { id: req.query.us } },
+              type: req.query.type === "guest" ? "GUEST" : "USER",
+              testVersion: req.query.v === "undefined" ? null : req.query.v,
             },
-          }),
-        });
+          },
+        };
+
+        const payloadString = JSON.stringify(graphqlPayload);
+        console.log(`GraphQL payload size: ${payloadString.length} bytes (${(payloadString.length / 1024 / 1024).toFixed(2)} MB)`);
+
+        try {
+          await axios({
+            method: "post",
+            url: serverUrl,
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            data: payloadString,
+          });
+          console.log("GraphQL request successful");
+        } catch (error) {
+          console.error("GraphQL request failed:", error.response?.status, error.response?.statusText);
+          console.error("Error details:", error.message);
+        }
       }
 
       res.send({
