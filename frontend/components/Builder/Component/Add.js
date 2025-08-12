@@ -163,7 +163,7 @@ export default function AddComponent({ query, user, redirect, isExternal }) {
       handleChange={handleChange}
       handleMultipleUpdate={handleMultipleUpdate}
       handleSubmit={handleSubmit}
-      submitBtnName={t("create.newBlock")}
+      submitBtnName={t("common.create")}
       loading={templateLoading || taskLoading}
       error={templateError || taskError}
       isTemplateAuthor={true}

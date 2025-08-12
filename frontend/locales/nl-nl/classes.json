@@ -107,7 +107,6 @@
 		"create": "Nieuwe klasse maken",
 		"createHeader": "Nieuwe klasse toevoegen",
 		"description": "Nieuwe klassebeschrijving",
-		"newBlock": "Nieuw blok maken",
 		"title": "Nieuwe klassenaam"
 	},
 	"createdByOn": "Gemaakt door {{username}} op {{date}}",
