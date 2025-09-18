@@ -103,7 +103,7 @@
 		}
 	},
 	"cloneAndModify": "Clonar y modificar un {{taskType}}",
-	"closeButton": "Cerca",
+	"closeButton": "Cerrar",
 	"collect": {
 		"noProjectFound": "No se encontró ningún proyecto, por favor guarde su proyecto primero.",
 		"noStudyAttachedHeader": "🤷🏻 Tu proyecto no tiene ningún estudio adjunto.",
@@ -112,7 +112,7 @@
 	"connectModal": {
 		"addCollaborators": "Agregar colaboradores",
 		"adminInfo": "Esta información es visible solo para ADMIN",
-		"close": "Cerca",
+		"close": "Cerrar",
 		"linkedClass": "Clase vinculada",
 		"noAuthor": "Sin autor",
 		"projectBoardCollaborators": "Colaboradores del tablero del proyecto",
@@ -124,7 +124,7 @@
 	},
 	"connectStudyModal": {
 		"adminInfo": "Esta información es visible solo para ADMIN",
-		"close": "Cerca",
+		"close": "Cerrar",
 		"linkedClass": "Clase vinculada",
 		"linkedProjects": "Proyectos vinculados",
 		"linkedProjectsDescription": "Proyectos que comparten el acceso a tu estudio {{title}}",
@@ -414,7 +414,7 @@
 		"zeroState2": "Una vez que cree una propuesta, aparecerá aquí."
 	},
 	"overviewCard": {
-		"close": "Cerca",
+		"close": "Cerrar",
 		"selectStudent": "Seleccionar estudiante"
 	},
 	"pagination": {
@@ -934,7 +934,7 @@
 	"taskDescription": "En una tarea, se pide a los participantes que realicen acciones específicas (por ejemplo, presionar un botón) según lo que ven o escuchan.",
 	"taskModal": {
 		"addToStudy": "Añadir al estudio",
-		"close": "Cerca",
+		"close": "Cerrar",
 		"createCopy": "Crear una copia",
 		"preview": "Vista previa {{taskType}}"
 	},

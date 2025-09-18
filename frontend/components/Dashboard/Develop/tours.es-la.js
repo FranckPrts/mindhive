@@ -1,7 +1,7 @@
 export const developTours = {
   overview: {
     title: "Resumen del Área de Desarrollo",
-    description: "Aprende cómo navegar y utilizar el área de Desarrollo",
+    description: "Aprende cómo navegar y usar el área de Desarrollo",
     steps: [
       {
         element: '#developNewBtn',

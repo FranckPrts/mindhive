@@ -231,10 +231,29 @@ export default function Walkthrough({ onStartWalkthrough }) {
                         }
                         break;
                     case 'visualize': // will be deprecated
+                        // Import tours directly without importing the component
                         try {
-                            componentImport = await import('../../Builder/Project/Visualize/Wrapper.js');
+                            const currentLocale = router.locale || 'en-us';
+                            let collectToursImport;
+                            
+                            // Try localized tour file first
+                            if (currentLocale !== 'en-us') {
+                                try {
+                                    collectToursImport = await import(`../../Builder/Project/Collect/tours.${currentLocale}.js`);
+                                } catch (localizedError) {
+                                    // Fallback to English
+                                    collectToursImport = await import('../../Builder/Project/Collect/tours.js');
+                                }
+                            } else {
+                                collectToursImport = await import('../../Builder/Project/Collect/tours.js');
+                            }
+                            
+                            componentImport = {
+                                default: { hasTour: true },
+                                tours: collectToursImport.collectTours
+                            };
                         } catch (error) {
-                            console.error('Failed to import visualize wrapper:', error);
+                            console.error('Failed to import collect tours:', error);
                             setHasTour(false);
                             return;
                         }
