@@ -217,7 +217,7 @@ export default function LinkedItems({
           borderRadius: "8px",
         }}
       >
-        {t("board.expendedCard.linkItems", "Link Items")} ({totalLinked})
+        {t("board.expendedCard.linkedItems", "Link Items")} ({totalLinked})
       </Button>
 
       <Modal

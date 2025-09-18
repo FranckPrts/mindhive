@@ -153,7 +153,7 @@ export default function Viewer({ task, close, openEditor, openPreview }) {
           {settings?.descriptionBefore && (
             <div>
               <h2>
-                <span dangerouslySetInnerHTML={{ __html: t("viewer.beforeParticipation", { taskType }, "What participants see <u>before</u> taking the {{taskType}}") }} />
+                <span dangerouslySetInnerHTML={{ __html: t("viewer.beforeParticipation", { taskType }, "What participants see before taking the {{taskType}}") }} />
               </h2>
               <p className="symbolBlock">{settings?.descriptionBefore}</p>
             </div>
@@ -162,7 +162,7 @@ export default function Viewer({ task, close, openEditor, openPreview }) {
           {settings?.descriptionAfter && (
             <div>
               <h2>
-                <span dangerouslySetInnerHTML={{ __html: t("viewer.afterParticipation", { taskType }, "What participants see <u>after</u> taking the {{taskType}}") }} />
+                <span dangerouslySetInnerHTML={{ __html: t("viewer.afterParticipation", { taskType }, "What participants see after taking the {{taskType}}") }} />
               </h2>
               <p className="symbolBlock">{settings?.descriptionAfter}</p>
             </div>

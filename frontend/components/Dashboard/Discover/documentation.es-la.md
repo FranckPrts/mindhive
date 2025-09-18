@@ -2,20 +2,20 @@
 
 ## Descripción General
 
-El **Área de Descubrimiento** es donde puedes explorar e inspirarte con contenido de investigación creado por otros. Aquí puedes navegar por estudios, tareas, encuestas y bloques, así como ver contenido destacado.
+El **Área de Descubrimiento** es donde puedes explorar y encontrar inspiración en contenido de investigación creado por otros. Aquí puedes navegar por estudios, tareas, encuestas y bloques, además de ver contenido destacado.
 
 ## Secciones Principales
 
-- **Estudios Destacados**: Estudios seleccionados aparecen en la parte superior para darte acceso rápido a proyectos interesantes.
-- **Menú de Biblioteca**: Pestañas para cambiar fácilmente entre estudios, tareas, encuestas y bloques.
-- **Banco de Estudios**: Cuadrícula de tarjetas de estudios para explorar. Usa filtros para ver todos los estudios, solo los que has unido o los que aún no has integrado.
-- **Banco de Tareas**: Cuadrícula de tarjetas de tareas (incluye encuestas y bloques), filtrable por tipo.
-- **Tarjetas**: Cada tarjeta muestra título, descripción, detalles clave y enlaces para abrir o unirse.
-- **Opciones de Filtro**: Menús desplegables te ayudan a filtrar por categoría, tipo o estado de participación.
+- **Estudios Destacados**: Los estudios destacados aparecen en la parte superior para darte acceso rápido a proyectos interesantes.
+- **Menú de Biblioteca**: Las pestañas te permiten cambiar fácilmente entre la navegación de estudios o tareas, encuestas y bloques.
+- **Banco de Estudios**: Un tablero con tarjetas de estudios que puedes explorar. Usa filtros para ver todos los estudios, sólo los que has unido o los que aún no.
+- **Banco de Tareas**: Un tablero con tarjetas de tareas (incluyendo encuestas y bloques), que puedes filtrar por tipo.
+- **Tarjetas**: Cada tarjeta muestra el título, descripción, detalles clave y enlaces para abrir o unirse.
+- **Opciones de Filtro**: Menús desplegables que te ayudan a filtrar por categoría, tipo o estado de participación.
 
-## Cómo Lo Usarás
+## Cómo lo Usarás
 
 - **Filtrar y Explorar**: Usa los menús desplegables para encontrar estudios y tareas que coincidan con tus intereses.
-- **Abrir Tarjetas**: Haz clic en cualquier tarjeta para obtener más información, ver detalles o participar.
-- **Cambiar Vista**: Usa las pestañas para alternar rápidamente entre estudios y tareas/encuestas.
-- **Aprender Más**: Algunas tarjetas contienen enlaces a recursos o documentación para profundizar.
+- **Abrir Tarjetas**: Haz clic en cualquier tarjeta para saber más, ver detalles o participar.
+- **Cambiar Vista**: Usa las pestañas para cambiar rápido entre estudios y tareas/encuestas.
+- **Aprender Más**: Algunas tarjetas tienen enlaces a recursos o documentación para entender mejor.
