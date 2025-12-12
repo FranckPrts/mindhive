@@ -56,6 +56,10 @@ export const OVERVIEW_PROPOSAL_BOARD_QUERY = gql`
       prototypeFor {
         id
       }
+      collaborators {
+        id
+        username
+      }
       study {
         id
         author {
@@ -787,6 +791,37 @@ export const GET_CARDS_BY_SECTION = gql`
     proposalCards(where: { section: { id: { equals: $sectionId } } }) {
       id
       title
+    }
+  }
+`;
+
+// search for students in the same class(es) as the user
+export const SEARCH_CLASS_STUDENTS = gql`
+  query SEARCH_CLASS_STUDENTS($classIds: [ID!], $search: String) {
+    profiles(
+      where: {
+        AND: [
+          { studentIn: { some: { id: { in: $classIds } } } }
+          {
+            OR: [
+              { username: { contains: $search } }
+              { firstName: { contains: $search } }
+              { lastName: { contains: $search } }
+            ]
+          }
+        ]
+      }
+    ) {
+      id
+      username
+      firstName
+      lastName
+      image {
+        id
+        image {
+          publicUrlTransformed
+        }
+      }
     }
   }
 `;

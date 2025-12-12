@@ -7,8 +7,12 @@ import { useMutation } from "@apollo/client";
 import useForm from "../../../../../../lib/useForm";
 
 import { Icon, Radio } from "semantic-ui-react";
+import { useState, useRef, useEffect } from "react";
 
 import useTranslation from "next-translate/useTranslation";
+
+import CollaboratorTags from "./CollaboratorTags";
+import AddCollaboratorModal from "./AddCollaboratorModal";
 
 export default function ProposalHeader({
   user,
@@ -19,7 +23,39 @@ export default function ProposalHeader({
   setIsPDF,
 }) {
   const { t } = useTranslation("builder");
+  const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const [isHoveringTitle, setIsHoveringTitle] = useState(false);
+  const [isAddCollaboratorModalOpen, setIsAddCollaboratorModalOpen] = useState(false);
+  const titleInputRef = useRef(null);
+  const titleContainerRef = useRef(null);
   const studyId = proposal?.study?.id;
+
+  useEffect(() => {
+    if (isTitleEditing && titleInputRef.current) {
+      titleInputRef.current.focus();
+    }
+  }, [isTitleEditing]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        isTitleEditing &&
+        titleContainerRef.current &&
+        !titleContainerRef.current.contains(event.target)
+      ) {
+        setIsTitleEditing(false);
+        setIsHoveringTitle(false);
+      }
+    };
+
+    if (isTitleEditing) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isTitleEditing]);
 
   // save and edit the study information
   const { inputs, handleChange, toggleBoolean, toggleSettingsBoolean } =
@@ -40,29 +76,102 @@ export default function ProposalHeader({
   return (
     <div className="header">
       <div>
-        {!proposalBuildMode && (
-          <div>
-            <div className="titleEditBtn">
-              <h1>{t("header.myProjectBoard", "My Project Board")}</h1>
-              <div id="switchMode" style={{display: "flex", width: "max-content"}}>
-              <button onClick={() => {setIsPDF(!isPDF);}} className="narrowButton">
-                  <Icon name="list alternate"/> {t("proposalPage.viewFlattenBoard", "Text View")}
-              </button>
-              {/* <Radio
-                toggle
-                checked={isPDF}
-                onChange={() => {
-                  setIsPDF(!isPDF);
-                }}
-              /> */}
-              </div>
-            </div>
-
-            <p>
-              {t("header.createYourStudyProposal", "Create your study proposal here to begin your research journey ")}
-            </p>
+      {!proposalBuildMode && (
+        <div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", alignContent: "center" }}>
+            <CollaboratorTags collaborators={proposal?.collaborators} />
+            <button
+              onClick={() => setIsAddCollaboratorModalOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "28px",
+                height: "28px",
+                borderRadius: "20px",
+                border: "1px solid #A1A1A1",
+                backgroundColor: "transparent",
+                cursor: "pointer",
+                fontSize: "20px",
+                color: "#171717",
+                padding: "4px",
+                flexShrink: 0,
+                transition: "background-color 0.2s ease",
+                margin: 0,
+                verticalAlign: "middle",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#F3F3F3";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+              title={t("header.addCollaborator", "Add collaborator")}
+            >
+              +
+            </button>
           </div>
-        )}
+          <div 
+            className="titleEditBtn"
+            ref={titleContainerRef}
+            onMouseEnter={() => setIsHoveringTitle(true)}
+            onMouseLeave={() => setIsHoveringTitle(false)}>
+            {isTitleEditing ? (
+              <input
+                ref={titleInputRef}
+                type="text"
+                id="proposalTitle"
+                name="title"
+                value={inputs.title}
+                onChange={handleChange}
+                className="titleEdit" style={{fontFamily: "Lato", fontWeight: 400, fontSize: "48px", margin: 0, lineHeight: "56px"}}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setIsTitleEditing(false);
+                  }
+                }}
+              />
+            ) : (
+              <div 
+                className="titleIcon" 
+                style={{
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: "10px",
+                  cursor: "pointer"
+                }}
+                onClick={() => {
+                  setIsTitleEditing(!isTitleEditing);
+                }}
+              >
+                <h1 style={{margin: 0}}>{inputs?.title || t("header.myProjectBoard", "My Project Board")}</h1>
+                {isHoveringTitle && (
+                  <span
+                    style={{
+                      color: "#336F8A",
+                      fontFamily: '"Nunito", sans-serif',
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      lineHeight: "20px",
+                      padding: "8px 16px",
+                      borderRadius: "100px",
+                      border: "1px solid #336F8A",
+                      transition: "background 0.2s"
+                    }}
+                  >
+                    {t("header.edit", "Edit")}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div id="switchMode" style={{display: "flex", width: "max-content", marginTop: "8px"}}>
+            <button onClick={() => {setIsPDF(!isPDF);}} className="narrowButton">
+              <Icon name="list alternate"/> {t("proposalPage.viewFlattenBoard", "Text View")}
+            </button>
+          </div>
+        </div>
+      )}
 
         {proposalBuildMode && (
           <div>
@@ -200,6 +309,7 @@ export default function ProposalHeader({
             <button
               className="secondaryBtn"
               onClick={async () => {
+                setIsTitleEditing(false);
                 const res = await updateProposal();
               }}
             >
@@ -208,6 +318,15 @@ export default function ProposalHeader({
           </div>
         )}
       </div>
+
+      {isAddCollaboratorModalOpen && (
+        <AddCollaboratorModal
+          proposal={proposal}
+          user={user}
+          onClose={() => setIsAddCollaboratorModalOpen(false)}
+          refetchQueries={refetchQueries}
+        />
+      )}
     </div>
   );
 }
