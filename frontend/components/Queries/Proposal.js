@@ -59,6 +59,12 @@ export const OVERVIEW_PROPOSAL_BOARD_QUERY = gql`
       collaborators {
         id
         username
+        image {
+          id
+          image {
+            publicUrlTransformed
+          }
+        }
       }
       study {
         id

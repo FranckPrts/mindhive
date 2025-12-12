@@ -78,27 +78,24 @@ export default function ProposalHeader({
       <div>
       {!proposalBuildMode && (
         <div>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", alignContent: "center" }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
             <CollaboratorTags collaborators={proposal?.collaborators} />
             <button
               onClick={() => setIsAddCollaboratorModalOpen(true)}
               style={{
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: "28px",
-                height: "28px",
+                width: "32px",
+                height: "32px",
                 borderRadius: "20px",
                 border: "1px solid #A1A1A1",
                 backgroundColor: "transparent",
                 cursor: "pointer",
-                fontSize: "20px",
-                color: "#171717",
                 padding: "4px",
                 flexShrink: 0,
                 transition: "background-color 0.2s ease",
                 margin: 0,
-                verticalAlign: "middle",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = "#F3F3F3";
@@ -108,7 +105,20 @@ export default function ProposalHeader({
               }}
               title={t("header.addCollaborator", "Add collaborator")}
             >
-              +
+              <span
+                style={{
+                  fontSize: "24px",
+                  color: "#171717",
+                  lineHeight: "1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: '"Nunito", sans-serif',
+                  fontWeight: 400,
+                }}
+              >
+                +
+              </span>
             </button>
           </div>
           <div 
