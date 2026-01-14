@@ -15,6 +15,7 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Button, Icon, Dropdown } from "semantic-ui-react";
 
 import { StyledTipTap } from "./StyledTipTap";
+import AiUiPanel from "./AiUiPanel";
 
 // Custom extension to handle base64 image pasting
 const PasteImageExtension = Extension.create({
@@ -94,17 +95,21 @@ const CustomLink = Link.extend({
     };
   },
 });
-  
+
 export default function TipTapEditor({
   content,
   onUpdate,
   isEditable = true,
   toolbarVisible = true,
   specialButton = null,
+  aiUiContent = null,
+  aiUiProps = null,
+  hiddenToolbarButtons = [],
 }) {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const editorRef = useRef(null);
+  const editorContainerRef = useRef(null);
 
   const editor = useEditor({
     extensions: [
@@ -171,6 +176,23 @@ export default function TipTapEditor({
     
   }, [editor, hasUserInteracted]);
 
+  // Handle clicking outside the editor container to hide toolbar and AI UI
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (editorContainerRef.current && !editorContainerRef.current.contains(event.target)) {
+        setIsFocused(false);
+      }
+    };
+
+    if (isFocused) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isFocused]);
+
 
   const Toolbar = () => {
     if (!editor || !toolbarVisible || !isFocused) return null;
@@ -212,51 +234,112 @@ export default function TipTapEditor({
     };
 
     const renderSpecialButton = () => {
-      if (!specialButton) return null;
+      // Allow special button with icon even if label is empty
+      const hasSpecialButton = specialButton && (specialButton.icon || specialButton.label) && typeof specialButton.onClick === "function";
+      
+      if (!hasSpecialButton) return null;
 
-      const {
-        label,
-        onClick,
-        disabled: externalDisabled,
-        loading = false,
-        icon,
-        className = "",
-        primary = false,
-        positive = false,
-        negative = false,
-        color,
-        colorBackground,
-        secondary = false,
-        basic = true,
-      } = specialButton;
+      let specialButtonElement = null;
+      if (hasSpecialButton) {
+        const {
+          label = "",
+          onClick,
+          disabled: externalDisabled,
+          loading = false,
+          icon,
+          className = "",
+          primary = false,
+          positive = false,
+          negative = false,
+          color,
+          colorBackground,
+          secondary = false,
+          basic = true,
+        } = specialButton;
 
-      if (!label || typeof onClick !== "function") {
-        return null;
+        const isDisabled = !!externalDisabled || !editor.isEditable;
+        const isIconOnly = !label || label.trim() === "";
+
+        const handleClick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (isDisabled) {
+            return;
+          }
+          onClick(editor, event);
+        };
+
+        const borderColor = color || "#274E5B";
+        const backgroundColor =
+          colorBackground !== undefined ? colorBackground : "#FFFFFF";
+
+        const buttonStyle = {
+          "--special-button-border": borderColor,
+          "--special-button-text": borderColor,
+          "--special-button-background": backgroundColor,
+          "--special-button-hover-border": backgroundColor,
+          "--special-button-hover-text": backgroundColor,
+          "--special-button-hover-background": borderColor,
+          ...(isIconOnly && {
+            minWidth: '36px',
+            width: '36px',
+            padding: '0',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }),
+        };
+
+        // Determine if icon is a path (SVG/image file) or Semantic UI icon name
+        const isIconPath = icon && (
+          typeof icon === 'string' && (
+            icon.startsWith('/') || 
+            icon.startsWith('./') || 
+            icon.includes('.svg') || 
+            icon.includes('.png') || 
+            icon.includes('.jpg') || 
+            icon.includes('.jpeg') || 
+            icon.includes('.gif')
+          )
+        );
+        
+        const renderIcon = () => {
+          if (!icon) return null;
+          
+          if (isIconPath) {
+            return <img src={icon} alt="" style={{ width: '16px', height: '16px' }} />;
+          }
+          
+          if (typeof icon === 'string') {
+            return <Icon name={icon} />;
+          }
+          
+          // If icon is a React element, render it directly
+          return icon;
+        };
+
+        const buttonClassName = `toolbarButton specialToolbarButton ${isIconOnly ? 'iconOnly' : ''} ${className}`.trim();
+
+        specialButtonElement = (
+          <Button
+            className={buttonClassName}
+            onClick={handleClick}
+            disabled={isDisabled}
+            loading={loading}
+            primary={primary}
+            positive={positive}
+            negative={negative}
+            secondary={secondary}
+            aria-label={label || (icon && typeof icon === 'string' ? icon : 'Icon button')}
+            basic={basic}
+            type="button"
+            style={buttonStyle}
+          >
+            {renderIcon()}
+            {!isIconOnly && label}
+          </Button>
+        );
       }
-
-      const isDisabled = !!externalDisabled || !editor.isEditable;
-
-      const handleClick = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (isDisabled) {
-          return;
-        }
-        onClick(editor, event);
-      };
-
-      const borderColor = color || "#274E5B";
-      const backgroundColor =
-        colorBackground !== undefined ? colorBackground : "#FFFFFF";
-
-      const buttonStyle = {
-        "--special-button-border": borderColor,
-        "--special-button-text": borderColor,
-        "--special-button-background": backgroundColor,
-        "--special-button-hover-border": backgroundColor,
-        "--special-button-hover-text": backgroundColor,
-        "--special-button-hover-background": borderColor,
-      };
 
       return (
         <>
@@ -277,23 +360,7 @@ export default function TipTapEditor({
               e.stopPropagation();
             }}
           >
-            <Button
-              className={`toolbarButton specialToolbarButton ${className}`.trim()}
-              onClick={handleClick}
-              disabled={isDisabled}
-              loading={loading}
-              primary={primary}
-              positive={positive}
-              negative={negative}
-              secondary={secondary}
-              aria-label={label}
-              basic={basic}
-              type="button"
-              style={buttonStyle}
-            >
-              {icon && <Icon name={icon} />}
-              {label}
-            </Button>
+            {specialButtonElement}
           </div>
         </>
       );
@@ -420,7 +487,7 @@ export default function TipTapEditor({
               e.stopPropagation();
             }}
           >
-            <Button
+            {!hiddenToolbarButtons.includes('undo') && (<Button
               icon
               className="toolbarButton"
               onClick={(e) =>
@@ -431,7 +498,8 @@ export default function TipTapEditor({
             >
               <Icon name="undo" />
             </Button>
-            <Button
+            )}
+            {!hiddenToolbarButtons.includes('redo') && (<Button
               icon
               className="toolbarButton"
               onClick={(e) =>
@@ -442,6 +510,7 @@ export default function TipTapEditor({
             >
               <Icon name="redo" />
             </Button>
+            )}
           </div>
           <div
             style={{
@@ -460,23 +529,24 @@ export default function TipTapEditor({
             }}
           >
             {/* Text formatting */}
-
-            <Button
-              icon
-              className="toolbarButton"
-              onClick={(e) =>
-                handleStyleClick(
-                  () => editor.commands.toggleHeading({ level: 1 }),
-                  e
-                )
-              }
-              disabled={!editor.isEditable}
-              active={editor.isActive("heading", { level: 1 })}
-              aria-label="Toggle heading 1"
-            >
-              <Icon name="header" />
-            </Button>
-            <Button
+            {!hiddenToolbarButtons.includes('heading') && (
+              <Button
+                icon
+                className="toolbarButton"
+                onClick={(e) =>
+                  handleStyleClick(
+                    () => editor.commands.toggleHeading({ level: 1 }),
+                    e
+                  )
+                }
+                disabled={!editor.isEditable}
+                active={editor.isActive("heading", { level: 1 })}
+                aria-label="Toggle heading 1"
+              >
+                <Icon name="header" />
+              </Button>
+            )}
+            {!hiddenToolbarButtons.includes('bold') && (<Button
               icon
               className="toolbarButton"
               onClick={(e) =>
@@ -488,7 +558,8 @@ export default function TipTapEditor({
             >
               <Icon name="bold" />
             </Button>
-            <Button
+            )}
+            {!hiddenToolbarButtons.includes('italic') && (<Button
               icon
               className="toolbarButton"
               onClick={(e) =>
@@ -500,7 +571,8 @@ export default function TipTapEditor({
             >
               <Icon name="italic" />
             </Button>
-            <Button
+            )}
+            {!hiddenToolbarButtons.includes('underline') && (<Button
               icon
               className="toolbarButton"
               onClick={(e) =>
@@ -512,8 +584,8 @@ export default function TipTapEditor({
             >
               <Icon name="underline" />
             </Button>
-            {/* Link */}
-            <Button
+            )}
+            {!hiddenToolbarButtons.includes('link') && (<Button
               icon
               className="toolbarButton"
               onClick={handleLinkClick}
@@ -523,128 +595,144 @@ export default function TipTapEditor({
             >
               <Icon name="linkify" />
             </Button>
+            )}
             </div>
-          <div
-            style={{
-              width: "1px",
-              background: "#D3E0E3",
-              height: "32px",
-              alignSelf: "center",
-              margin: "0 4px",
-            }}
-          />
-          <div
-            className="toolbarGroup"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <Button
-              icon
-              className="toolbarButton"
-              onClick={(e) =>
-                handleStyleClick(() => editor.commands.toggleBulletList(), e)
-              }
-              disabled={!editor.isEditable}
-              active={editor.isActive("bulletList")}
-              aria-label="Toggle bullet list"
-            >
-              <Icon name="list ul" />
-            </Button>
-            <Button
-              icon
-              className="toolbarButton"
-              onClick={(e) =>
-                handleStyleClick(() => editor.commands.toggleOrderedList(), e)
-              }
-              disabled={!editor.isEditable}
-              active={editor.isActive("orderedList")}
-              aria-label="Toggle numbered list"
-            >
-              <Icon name="list ol" />
-            </Button>
-            <Button
-              icon
-              className="toolbarButton"
-              onClick={(e) =>
-                handleStyleClick(() => editor.commands.toggleBlockquote(), e)
-              }
-              disabled={!editor.isEditable}
-              active={editor.isActive("blockquote")}
-              aria-label="Toggle blockquote"
-            >
-              <Icon name="quote left" />
-            </Button>
-          </div>
-          <div
-            style={{
-              width: "1px",
-              background: "#D3E0E3",
-              height: "32px",
-              alignSelf: "center",
-              margin: "0 4px",
-            }}
-          />
-          <div
-            className="toolbarGroup"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            
-            {/* Image */}
-            <Button
-              icon
-              className="toolbarButton"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const url = window.prompt('Enter image URL or paste base64 data:');
-                if (url && editor.isEditable) {
-                  editor.chain().focus().setImage({ src: url }).run();
-                }
-              }}
-              disabled={!editor.isEditable}
-              aria-label="Insert image"
-            >
-              <Icon name="image" />
-            </Button>
-            
-            <Dropdown
-              trigger={
-                <Button
-                  icon
-                  className="toolbarButton"
-                  disabled={!editor.isEditable}
-                  active={editor.isActive("table")}
-                  aria-label="Table options"
-                >
-                  <Icon name="table" />
-                </Button>
-              }
-              pointing
-              className="table-dropdown"
-              disabled={!editor.isEditable}
-            >
-              <Dropdown.Menu>
-                {tableOptions.map((option) => (
-                  <Dropdown.Item
-                    key={option.key}
-                    icon={option.icon}
-                    text={option.text}
-                    disabled={option.disabled}
+          {!hiddenToolbarButtons.includes('list') && !hiddenToolbarButtons.includes('quote') && (
+            <>
+              <div
+                style={{
+                  width: "1px",
+                  background: "#D3E0E3",
+                  height: "32px",
+                  alignSelf: "center",
+                  margin: "0 4px",
+                }}
+              />
+              <div
+                className="toolbarGroup"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                {!hiddenToolbarButtons.includes('list') && (
+                  <>
+                    <Button
+                      icon
+                      className="toolbarButton"
+                      onClick={(e) =>
+                        handleStyleClick(() => editor.commands.toggleBulletList(), e)
+                      }
+                      disabled={!editor.isEditable}
+                      active={editor.isActive("bulletList")}
+                      aria-label="Toggle bullet list"
+                    >
+                      <Icon name="list ul" />
+                    </Button>
+                    <Button
+                      icon
+                      className="toolbarButton"
+                      onClick={(e) =>
+                        handleStyleClick(() => editor.commands.toggleOrderedList(), e)
+                      }
+                      disabled={!editor.isEditable}
+                      active={editor.isActive("orderedList")}
+                      aria-label="Toggle numbered list"
+                    >
+                      <Icon name="list ol" />
+                    </Button>
+                  </>
+                )}
+                {!hiddenToolbarButtons.includes('quote') && (
+                  <Button
+                    icon
+                    className="toolbarButton"
+                    onClick={(e) =>
+                      handleStyleClick(() => editor.commands.toggleBlockquote(), e)
+                    }
+                    disabled={!editor.isEditable}
+                    active={editor.isActive("blockquote")}
+                    aria-label="Toggle blockquote"
+                  >
+                    <Icon name="quote left" />
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+          {!hiddenToolbarButtons.includes('image') && !hiddenToolbarButtons.includes('table') && (
+            <>
+              <div
+                style={{
+                  width: "1px",
+                  background: "#D3E0E3",
+                  height: "32px",
+                  alignSelf: "center",
+                  margin: "0 4px",
+                }}
+              />
+              <div
+                className="toolbarGroup"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                {!hiddenToolbarButtons.includes('image') && (
+                  <Button
+                    icon
+                    className="toolbarButton"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      option.onClick();
+                      const url = window.prompt('Enter image URL or paste base64 data:');
+                      if (url && editor.isEditable) {
+                        editor.chain().focus().setImage({ src: url }).run();
+                      }
                     }}
-                  />
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
-          </div>
+                    disabled={!editor.isEditable}
+                    aria-label="Insert image"
+                  >
+                    <Icon name="image" />
+                  </Button>
+                )}
+                {!hiddenToolbarButtons.includes('table') && (
+                  <Dropdown
+                    trigger={
+                      <Button
+                        icon
+                        className="toolbarButton"
+                        disabled={!editor.isEditable}
+                        active={editor.isActive("table")}
+                        aria-label="Table options"
+                      >
+                        <Icon name="table" />
+                      </Button>
+                    }
+                    pointing
+                    className="table-dropdown"
+                    disabled={!editor.isEditable}
+                  >
+                    <Dropdown.Menu>
+                      {tableOptions.map((option) => (
+                        <Dropdown.Item
+                          key={option.key}
+                          icon={option.icon}
+                          text={option.text}
+                          disabled={option.disabled}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            option.onClick();
+                          }}
+                        />
+                      ))}
+                    </Dropdown.Menu>
+                  </Dropdown>
+                )}
+              </div>
+            </>
+          )}
         {renderSpecialButton()}
         </div>
       </div>
@@ -653,14 +741,19 @@ export default function TipTapEditor({
 
   return (
     <StyledTipTap ref={editorRef}>
-      <div className="editorContainer">
+      <div className="editorContainer" ref={editorContainerRef}>
+        <Toolbar />
+        <AiUiPanel 
+          aiUiContent={aiUiContent} 
+          isFocused={isFocused}
+          {...(aiUiProps || {})}
+        />
         <EditorContent 
           editor={editor} 
           className="tiptapEditor" 
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
         />
-        <Toolbar />
       </div>
     </StyledTipTap>
   );

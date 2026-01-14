@@ -388,5 +388,9 @@ export const Profile = list({
       ref: "Log.user",
       many: true,
     }),
+    aiThreads: relationship({
+      ref: "AiThread.profile",
+      many: true,
+    }),
   },
 });

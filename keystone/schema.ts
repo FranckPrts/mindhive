@@ -44,6 +44,7 @@ import { VizSection } from "./schemas/VizSection";
 import { Resource } from "./schemas/Resource";
 import { Log } from "./schemas/Log";
 import { Datasource } from "./schemas/Datasource";
+import { AiThread } from "./schemas/AiThread";
 
 // see https://keystonejs.com/docs/fields/overview for the full list of fields
 //   this is a few common fields for an example
@@ -100,4 +101,5 @@ export const lists: Lists = {
   Resource,
   Log,
   Datasource,
+  AiThread,
 };

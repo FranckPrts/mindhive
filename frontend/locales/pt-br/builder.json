@@ -71,7 +71,7 @@
 	},
 	"builderSection": {
 		"cloneDialog": {
-			"description": "Este quadro possui {count} quadros de projeto clonados. Deseja adicionar este novo cartão às seções correspondentes em todos os quadros de projeto clonados?",
+			"description": "Este quadro possui quadros de projeto clonados. Deseja adicionar este novo cartão às seções correspondentes em todos os quadros de projeto clonados?",
 			"noOption": "Não, adicione apenas a este quadro.",
 			"title": "Adicionar aos quadros clonados?",
 			"yesOption": "Sim, adicione a todos os clones."
@@ -700,6 +700,7 @@
 		"noIndividualWork": "Nenhum trabalho individual encontrado para o aluno selecionado.",
 		"noStudy": "Não há estudo",
 		"participateInStudy": "Participe do estudo",
+		"proposalFeedback": "",
 		"proposalTab": "Proposta",
 		"resubmitConfirm": "Tem certeza de que deseja reenviar? Seu feedback será atualizado.",
 		"resubmitFeedback": "Reenviar feedback",

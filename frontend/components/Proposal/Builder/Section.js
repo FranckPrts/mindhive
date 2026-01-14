@@ -591,10 +591,7 @@ const Section = ({
           <p style={{ marginBottom: "16px", color: "#3b3b3b" }}>
             {t(
               "builderSection.cloneDialog.description",
-              "This board has {count} cloned project board(s). Do you want to add this new card to the corresponding sections in all cloned project boards?",
-              {
-                count: newCardInfo?.cloneCount || 0,
-              }
+              "This board has cloned project board(s). Do you want to add this new card to the corresponding sections in all cloned project boards?",
             )}
           </p>
         </Modal.Content>

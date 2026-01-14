@@ -162,6 +162,7 @@ export default function UserReview({
             reviewContent={inputs?.content || []}
             status={status}
             handleItemChange={handleItemChange}
+            user={user}
           />
         )}
       </div>

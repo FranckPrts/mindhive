@@ -8,6 +8,7 @@ export default function QuestionsMain({
   reviewContent,
   status,
   handleItemChange,
+  user,
 }) {
   const { t } = useTranslation("builder");
   return (
@@ -15,16 +16,16 @@ export default function QuestionsMain({
       <div className="reviewQuestions">
         <h1>
           {status === "SUBMITTED_AS_PROPOSAL" || status === "PEER_REVIEW"
-            ? t("reviewTabs.proposalFeedback")
+            ? t("reviewDetail.proposalFeedback")
             : t("reviewDetail.studyFeedback")}
         </h1>
-        <div className="subtitle">
+        {/* <div className="subtitle">
           {t(
             status === "SUBMITTED_AS_PROPOSAL"
               ? "reviewDetail.helpStudents"
               : "reviewDetail.helpPeers"
           )}
-        </div>
+        </div> */}
         <div className="reviewItems">
           {reviewContent?.map((item, i) => (
             <Question
@@ -33,6 +34,8 @@ export default function QuestionsMain({
               item={item}
               handleItemChange={handleItemChange}
               answer={item?.answer || ""}
+              projectId={projectId}
+              user={user}
             />
           ))}
         </div>

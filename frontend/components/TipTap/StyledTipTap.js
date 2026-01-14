@@ -97,6 +97,21 @@ export const StyledTipTap = styled.div`
           font-size: 1em;
         }
 
+        &.iconOnly {
+          min-width: 32px !important;
+          width: 32px !important;
+          height: 32px !important;
+          padding: 0 !important;
+          border-radius: 50% !important;
+          display: flex !important;
+          justify-content: center !important;
+          align-items: center !important;
+          
+          img {
+            margin: 0 !important;
+          }
+        }
+
         &:hover:not(.disabled):not(.loading) {
           background: var(--special-button-hover-background, #274e5b) !important;
           color: var(--special-button-hover-text, #ffffff) !important;

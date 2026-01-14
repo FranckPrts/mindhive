@@ -71,7 +71,7 @@
 	},
 	"builderSection": {
 		"cloneDialog": {
-			"description": "This board has {count} cloned project board(s). Do you want to add this new card to the corresponding sections in all cloned project boards?",
+			"description": "This board has cloned project board(s). Do you want to add this new card to the corresponding sections in all cloned project boards?",
 			"noOption": "No, add only to this board",
 			"title": "Add to Cloned Boards?",
 			"yesOption": "Yes, add to all clones"
@@ -700,6 +700,7 @@
 		"noIndividualWork": "No individual work found for the selected student.",
 		"noStudy": "There is no study",
 		"participateInStudy": "Participate in the study",
+		"proposalFeedback": "Leave a Proposal Feedback",
 		"proposalTab": "Proposal",
 		"resubmitConfirm": "Are you sure you want to resubmit? Your feedback will be updated.",
 		"resubmitFeedback": "Resubmit Feedback",
@@ -709,7 +710,7 @@
 		"selectStudent": "Select the student",
 		"selectStudentPlaceholder": "Select student",
 		"showCollectiveWork": "Show collective work",
-		"studyFeedback": "Study Feedback",
+		"studyFeedback": "Leave a Study Feedback",
 		"submitConfirm": "Are you sure you want to submit? Your feedback will be visible for others. You can edit your feedback after submission.",
 		"submitFeedback": "Submit Feedback",
 		"submitted": "The review has been submitted",

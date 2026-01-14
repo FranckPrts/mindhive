@@ -71,7 +71,7 @@
 	},
 	"builderSection": {
 		"cloneDialog": {
-			"description": "Ce tableau contient {count} tableaux de projet clonés. Souhaitez-vous ajouter cette nouvelle carte aux sections correspondantes de tous les tableaux de projet clonés ?",
+			"description": "Ce tableau contient des tableaux de projet clonés. Souhaitez-vous ajouter cette nouvelle carte aux sections correspondantes de tous les tableaux de projet clonés ?",
 			"noOption": "Non, ajoutez uniquement à ce tableau",
 			"title": "Ajouter aux forums clonés ?",
 			"yesOption": "Oui, ajoutez-le à tous les clones"
@@ -700,6 +700,7 @@
 		"noIndividualWork": "Aucun travail individuel trouvé pour l'étudiant sélectionné.",
 		"noStudy": "Il n'y a pas d'étude",
 		"participateInStudy": "Participer à l'étude",
+		"proposalFeedback": "",
 		"proposalTab": "Proposition",
 		"resubmitConfirm": "Êtes-vous sûr de vouloir soumettre à nouveau ? Vos commentaires seront mis à jour.",
 		"resubmitFeedback": "Re soumettre",

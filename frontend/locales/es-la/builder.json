@@ -71,7 +71,7 @@
 	},
 	"builderSection": {
 		"cloneDialog": {
-			"description": "Este tablero tiene {count} tableros de proyecto clonados. ¿Desea agregar esta nueva tarjeta a las secciones correspondientes en todos los tableros de proyecto clonados?",
+			"description": "Este tablero tiene tableros de proyecto clonados. ¿Desea agregar esta nueva tarjeta a las secciones correspondientes en todos los tableros de proyecto clonados?",
 			"noOption": "No, añadir solo a este tablero",
 			"title": "¿Añadir a placas clonadas?",
 			"yesOption": "Sí, añadir a todos los clones"
@@ -700,6 +700,7 @@
 		"noIndividualWork": "No se encontraron trabajos individuales para el estudiante seleccionado.",
 		"noStudy": "No hay ningún estudio",
 		"participateInStudy": "Participar en el estudio",
+		"proposalFeedback": "",
 		"proposalTab": "Propuesta",
 		"resubmitConfirm": "¿Seguro que quieres volver a enviarlo? Tus comentarios se actualizarán.",
 		"resubmitFeedback": "Volver a enviar comentarios",

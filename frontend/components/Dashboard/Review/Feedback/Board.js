@@ -1,4 +1,6 @@
 import { Icon } from "semantic-ui-react";
+import ReactHtmlParser from "react-html-parser";
+import styled from "styled-components";
 
 import { useQuery, useMutation } from "@apollo/client";
 import { EDIT_REVIEW } from "../../../Mutations/Review";
@@ -9,6 +11,43 @@ import StyledFeedback from "../../../styles/StyledFeedback";
 import ManageFavorite from "../../../User/ManageFavorite";
 import useTranslation from 'next-translate/useTranslation';
 
+const TaskChip = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: fit-content;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid ${props => props.isFavorite ? '#5D5763' : '#A1A1A1'};
+  background: ${props => props.isFavorite ? '#FDF2D0' : '#FFFFFF'};
+  color: #171717;
+  font-family: "Nunito", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${props => props.isFavorite ? '#A3D6DB' : '#336F8A'};
+  }
+
+  .taskLink {
+    color: #171717;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    flex: 1;
+  }
+
+  .favoriteButton {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+`;
 
 
 export default function Board({ user, projectId, status, reviews }) {
@@ -163,16 +202,29 @@ export default function Board({ user, projectId, status, reviews }) {
                       if (tasksWithId && tasksWithId.length) {
                         task = tasksWithId[0];
                       }
+                      const isFavorite = user?.favoriteTasks?.map((t) => t?.id).includes(id);
                       return (
-                        <div key={id} className="task">
-                          <ManageFavorite user={user} id={id} />
+                        <TaskChip 
+                          key={id} 
+                          isFavorite={isFavorite}
+                        >
                           <a
+                            className="taskLink"
                             href={`/dashboard/discover/tasks?name=${task?.slug}`}
                             target="_blank"
                           >
-                            <div className="questionAnswer">{task.title}</div>
+                            {task.title}
                           </a>
-                        </div>
+                          <div 
+                            className="favoriteButton"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                          >
+                            <ManageFavorite user={user} id={id} />
+                          </div>
+                        </TaskChip>
                       );
                     })}
                   </div>

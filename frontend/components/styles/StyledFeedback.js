@@ -51,18 +51,10 @@ const StyledFeedback = styled.div`
     }
 
     .tasksArea {
-      display: grid;
-      justify-content: end;
-      justify-items: end;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      .task {
-        display: grid;
-        grid-gap: 10px;
-        grid-template-columns: auto 1fr;
-        padding: 10px 20px;
-        background: #fdf2d0;
-        border-radius: 20px;
-      }
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
     }
   }
 
@@ -76,15 +68,20 @@ const StyledFeedback = styled.div`
       font-size: 16px;
       line-height: 137%;
       color: #3b3b3b;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
     .questionTitle {
       font-size: 18px;
       font-weight: bold;
-      margin-bottom: 5px;
+      margin-top: 16px;
     }
     .questionAnswer {
       font-weight: 700;
       font-style: normal;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #A1A1A1;
     }
   }
 

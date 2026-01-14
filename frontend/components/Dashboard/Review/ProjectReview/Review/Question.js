@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownItem,
@@ -9,10 +10,19 @@ import {
 import ReactStars from "react-rating-stars-component"; // https://www.npmjs.com/package/react-rating-stars-component
 import TaskSelector from "./TaskSelector";
 import useTranslation from "next-translate/useTranslation";
+import TipTapEditor from "../../../../TipTap/Main";
 
-export default function Question({ stage, item, handleItemChange, answer }) {
+export default function Question({ stage, item, handleItemChange, answer, projectId, user }) {
   const { t } = useTranslation("builder");
   const { responseType } = item;
+  const [aiUiOpen, setAiUiOpen] = useState(false);
+
+  // Check if user has permission to see the AI button
+  const permissions = user?.permissions?.map((p) => p?.name) || [];
+  const canSeeAiButton = 
+    permissions.includes("MENTOR") || 
+    permissions.includes("TEACHER") || 
+    permissions.includes("ADMIN");
 
   if (responseType === "selectOne") {
     const options = item?.responseOptions.map((r) => ({
@@ -104,20 +114,46 @@ export default function Question({ stage, item, handleItemChange, answer }) {
         </div>
       )}
 
-      <textarea
-        type="text"
-        id={item.name}
-        name={item.name}
-        value={answer}
-        className="answer"
-        onChange={({ target }) =>
-          handleItemChange({
-            className: "answer",
-            name: item.name,
-            value: target.value,
-          })
-        }
-      />
+      <div className="answer">
+        <TipTapEditor
+          content={answer || ""}
+          onUpdate={(newContent) =>
+            handleItemChange({
+              className: "answer",
+              name: item.name,
+              value: newContent,
+            })
+          }
+          isEditable={true}
+          toolbarVisible={true}
+          specialButton={canSeeAiButton ? {
+            label: "",
+            icon: "/assets/ai/ai_chat_bubble.svg",
+            onClick: () => setAiUiOpen(!aiUiOpen),
+            color: "#55808C",
+            colorBackground: "#D3E0E3",
+            basic: false,
+          } : null}
+          aiUiContent={
+            aiUiOpen
+              ? () => {
+                  // AI UI content will be defined later
+                  return null;
+                }
+              : null
+          }
+          aiUiProps={
+            aiUiOpen
+              ? {
+                  proposalId: projectId,
+                  questionNumber: item.name,
+                  currentTextContent: answer || "",
+                }
+              : null
+          }
+          hiddenToolbarButtons={['heading',  'list', 'link', 'quote', 'image', 'table']}
+        />
+      </div>
     </div>
   );
 }

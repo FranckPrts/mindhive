@@ -71,7 +71,7 @@
 	},
 	"builderSection": {
 		"cloneDialog": {
-			"description": "Dit bord bevat {count} gekloonde projectborden. Wilt u deze nieuwe kaart toevoegen aan de overeenkomstige secties in alle gekloonde projectborden?",
+			"description": "Dit bord bevat gekloonde projectborden. Wilt u deze nieuwe kaart toevoegen aan de overeenkomstige secties in alle gekloonde projectborden?",
 			"noOption": "Nee, alleen toevoegen aan dit bord",
 			"title": "Toevoegen aan gekloonde borden?",
 			"yesOption": "Ja, toevoegen aan alle klonen"
@@ -700,6 +700,7 @@
 		"noIndividualWork": "Er is geen individueel werk gevonden voor de geselecteerde student.",
 		"noStudy": "Er is geen onderzoek",
 		"participateInStudy": "Doe mee aan het onderzoek",
+		"proposalFeedback": "",
 		"proposalTab": "Voorstel",
 		"resubmitConfirm": "Weet u zeker dat u opnieuw wilt verzenden? Uw feedback wordt bijgewerkt.",
 		"resubmitFeedback": "Feedback opnieuw indienen",

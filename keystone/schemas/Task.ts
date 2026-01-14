@@ -1,4 +1,5 @@
 import { list } from "@keystone-6/core";
+// import { embedTask } from "../migrations/embedTask";
 import {
   text,
   relationship,
@@ -38,6 +39,10 @@ export const Task = list({
       hooks: {
         async resolveInput({ context, operation, inputData }) {
           if (operation === "create") {
+            // If slug is already provided, use it (for migrations)
+            if (inputData.slug) {
+              return inputData.slug;
+            }
             const { title } = inputData;
             if (title) {
               let slug = slugify(title, {
@@ -71,7 +76,15 @@ export const Task = list({
       hooks: {
         async resolveInput({ context, operation, inputData }) {
           if (operation === "create") {
-            return { connect: { id: context.session.itemId } };
+            // Use provided author if available (for migrations), otherwise use session
+            if (inputData.author) {
+              return inputData.author;
+            }
+            if (context.session?.itemId) {
+              return { connect: { id: context.session.itemId } };
+            }
+            // Return undefined if no author provided and no session
+            return undefined;
           } else {
             return inputData.author;
           }
@@ -118,5 +131,18 @@ export const Task = list({
       defaultValue: { kind: "now" },
     }),
     updatedAt: timestamp(),
+  //   embedding: json({ defaultValue: [] }),
+  // },
+  // hooks: {
+  //   async afterOperation({ operation, item, resolvedData }) {
+  //     if (operation === "create" || operation === "update") {
+  //       const embedding = await embedTask(item);
+  
+  //       await pg.query(
+  //         `UPDATE "Task" SET embedding = $1 WHERE id = $2`,
+  //         [embedding, item.id]
+  //       );
+  //     }
+  //   },
   },
 });
