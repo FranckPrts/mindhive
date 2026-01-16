@@ -7,7 +7,6 @@ export const CREATE_AI_THREAD = gql`
     $assistantId: String!
     $proposalId: String
     $status: String
-    $threadState: JSON
   ) {
     createAiThread(
       data: {
@@ -15,7 +14,6 @@ export const CREATE_AI_THREAD = gql`
         assistantId: $assistantId
         proposalId: $proposalId
         status: $status
-        threadState: $threadState
       }
     ) {
       id
@@ -30,11 +28,10 @@ export const UPDATE_AI_THREAD = gql`
   mutation UPDATE_AI_THREAD(
     $threadId: String!
     $status: String
-    $threadState: JSON
   ) {
     updateAiThread(
       where: { threadId: $threadId }
-      data: { status: $status, threadState: $threadState }
+      data: { status: $status }
     ) {
       id
       threadId

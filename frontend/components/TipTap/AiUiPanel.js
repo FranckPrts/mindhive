@@ -263,7 +263,7 @@ export default function AiUiPanel({
 }) {
   const [ongoingStep, setOngoingStep] = useState(null);
   const [result, setResult] = useState(null);
-  const [savedThreadId, setSavedThreadId] = useState(null);
+  const [savedThreadId, setSavedThreadId] = useState(null); // LangGraph's generated thread ID
   const [isManuallyClosed, setIsManuallyClosed] = useState(false);
   
   // Track state to prevent infinite loops
@@ -310,20 +310,21 @@ export default function AiUiPanel({
     : process.env.NEXT_PUBLIC_LANGGRAPH_ENDPOINT;
 
   // Set up the streaming thread - only when endpoint is available
-  // Note: Don't provide thread_id initially - let LangGraph generate a UUID
-  // Only provide threadId/thread_id if we have a savedThreadId (for resuming existing threads)
+  // IMPORTANT: Let LangGraph create the thread automatically and use its thread ID consistently
   const thread = useStream(
     uriEndpoint
       ? {
           apiUrl: uriEndpoint,
           assistantId: "feedback_agent",
           messagesKey: "messages",
-          threadId: savedThreadId || undefined, // Only provide if we have a saved UUID
+          // Don't pass threadId here - let LangGraph create the thread
+          // Passing it would require the thread to already exist (causes 404 if it doesn't)
+          threadId: savedThreadId || undefined, // Only use saved ID for resuming existing threads
           onThreadId: (id) => {
-            // This gets called when LangGraph creates/generates a thread ID (UUID)
-            // Only save if we don't already have one (to avoid overwriting)
+            // LangGraph generated/created a thread ID - use this consistently
             if (!savedThreadId && id) {
               setSavedThreadId(id);
+              // Save to database
               if (user?.id) {
                 createAiThread({
                   variables: {
@@ -331,7 +332,6 @@ export default function AiUiPanel({
                     assistantId: "feedback_agent",
                     proposalId,
                     status: "streaming",
-                    threadState: null,
                   },
                 }).catch((error) => {
                   console.error("Error saving thread:", error);
@@ -353,12 +353,13 @@ export default function AiUiPanel({
               setOngoingStep("Complete");
               
               // Final update to database with complete status
+              // Note: State persistence is now handled automatically by PostgreSQL checkpointer
+              // No need to manually save threadState - checkpointer maintains full conversation history
               if (user?.id && savedThreadId) {
                 updateAiThread({
                   variables: {
                     threadId: savedThreadId,
                     status: "complete",
-                    threadState: eventState,
                   },
                 }).catch((error) => {
                   console.error("Error updating thread status:", error);
@@ -373,9 +374,9 @@ export default function AiUiPanel({
           },
           config: {
             configurable: {
-              // Only provide thread_id if we have a saved UUID (for resuming)
-              // Otherwise, let LangGraph generate one automatically
-              ...(savedThreadId ? { thread_id: savedThreadId } : {}),
+              // Use LangGraph's thread_id consistently for checkpointer
+              // Will be undefined on first request, then set after onThreadId callback
+              thread_id: savedThreadId || undefined,
             },
           },
         }
@@ -454,29 +455,66 @@ export default function AiUiPanel({
     const threadState = thread.state || thread.currentState || thread.values;
     const threadStateValues = threadState?.values || threadState;
     const threadStatus = thread.status || thread.currentStatus;
+    const threadNext = threadState?.next || thread.next;
     
-    // PRIMARY COMPLETION CHECK: Check if result exists in state
+    // PRIMARY COMPLETION CHECK: Check if result exists in state OR if next is empty (graph ended)
     // This is the most reliable indicator - the agent sets result before reaching END
     // The toolNode sets state.result when a feedback tool completes, then shouldContinue returns END
-    if (threadStateValues?.result && threadStateValues.result.textDisplay && !hasProcessedCompletionRef.current) {
-      console.log("✅ Completion detected via state.result:", threadStateValues.result);
+    // If next is empty array, the graph has ended (even if result wasn't set yet)
+    const hasResult = threadStateValues?.result && threadStateValues.result.textDisplay;
+    const graphEnded = Array.isArray(threadNext) && threadNext.length === 0;
+    
+    if ((hasResult || graphEnded) && !hasProcessedCompletionRef.current) {
+      if (hasResult) {
+        console.log("✅ Completion detected via state.result:", threadStateValues.result);
+        setResult(threadStateValues.result);
+      } else if (graphEnded) {
+        console.log("✅ Completion detected via empty next array (graph ended)");
+        // Graph ended but no result - try to extract from messages
+        let extractedResult = null;
+        if (threadStateValues?.messages) {
+          const feedbackMessages = threadStateValues.messages.filter((m) => 
+            m.content && typeof m.content === 'string' && m.content.includes('"textDisplay"')
+          );
+          if (feedbackMessages.length > 0) {
+            try {
+              const lastFeedback = feedbackMessages[feedbackMessages.length - 1];
+              const feedbackResult = JSON.parse(lastFeedback.content);
+              if (feedbackResult.textDisplay) {
+                console.log("Extracted result from messages:", feedbackResult);
+                extractedResult = feedbackResult;
+                setResult(feedbackResult);
+              }
+            } catch (error) {
+              console.error("Error parsing feedback result:", error);
+            }
+          }
+        }
+        // If still no result, set a default message
+        if (!extractedResult) {
+          setResult({
+            textDisplay: "Feedback generation completed.",
+            buttonsArray: [],
+          });
+        }
+      }
+      
       hasProcessedCompletionRef.current = true;
-      setResult(threadStateValues.result);
       setOngoingStep("Complete");
       
       // Final update to database with complete status
-      if (user?.id) {
+      // Note: State persistence is now handled automatically by PostgreSQL checkpointer
+      if (user?.id && savedThreadId) {
         updateAiThread({
           variables: {
             threadId: savedThreadId,
             status: "complete",
-            threadState: threadStateValues,
           },
         }).catch((error) => {
           console.error("Error updating thread status:", error);
         });
       }
-      return; // Exit early since we found the result
+      return; // Exit early since we found completion
     }
     
     // Update ongoingStep from thread state (only if it changed)
@@ -493,11 +531,11 @@ export default function AiUiPanel({
     if (shouldUpdateDB && user?.id && savedThreadId && !hasProcessedCompletionRef.current) {
       // Update thread in database only when status changes or during streaming
       // Only update if we have a savedThreadId (thread exists)
+      // Note: State persistence is now handled automatically by PostgreSQL checkpointer
       updateAiThread({
         variables: {
           threadId: savedThreadId,
           status: threadStatus || "streaming",
-          threadState: threadStateValues,
         },
       }).catch((error) => {
         // Handle error gracefully - thread might not exist yet or lookup failed
@@ -527,12 +565,12 @@ export default function AiUiPanel({
         setOngoingStep("Complete");
         
         // Final update to database with complete status
+        // Note: State persistence is now handled automatically by PostgreSQL checkpointer
         if (user?.id) {
           updateAiThread({
             variables: {
               threadId: savedThreadId,
               status: "complete",
-              threadState: state,
             },
           }).catch((error) => {
             console.error("Error updating thread status:", error);
@@ -557,12 +595,12 @@ export default function AiUiPanel({
             setOngoingStep("Complete");
             
             // Final update to database with complete status
+            // Note: State persistence is now handled automatically by PostgreSQL checkpointer
             if (user?.id) {
               updateAiThread({
                 variables: {
                   threadId: savedThreadId,
                   status: "complete",
-                  threadState: state,
                 },
               }).catch((error) => {
                 console.error("Error updating thread status:", error);
@@ -600,12 +638,12 @@ export default function AiUiPanel({
       });
       
       // Update thread status in database
+      // Note: State persistence is now handled automatically by PostgreSQL checkpointer
       if (user?.id) {
         updateAiThread({
           variables: {
             threadId: savedThreadId,
             status: "error",
-            threadState: threadStateValues,
           },
         }).catch((error) => {
           console.error("Error updating thread status:", error);

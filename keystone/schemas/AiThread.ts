@@ -3,7 +3,6 @@ import {
   text,
   relationship,
   timestamp,
-  json,
 } from "@keystone-6/core/fields";
 import { permissions, rules } from "../access";
 
@@ -39,7 +38,9 @@ export const AiThread = list({
         },
       },
     }),
-    threadState: json(), // Store the thread state/content from LangGraph
+    // threadState removed - state persistence now handled by PostgreSQL checkpointer
+    // The checkpointer maintains full conversation history automatically
+    // Access previous messages via graph.getState(config) using thread_id
     status: text({
       isFilterable: true,
     }),
