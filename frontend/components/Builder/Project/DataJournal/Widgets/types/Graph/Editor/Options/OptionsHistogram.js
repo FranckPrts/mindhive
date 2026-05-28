@@ -1,5 +1,6 @@
 import useTranslation from "next-translate/useTranslation";
 
+import Chip from "../../../../../../../../DesignSystem/Chip";
 import FieldRow from "../../../_shared/FieldRow";
 import SectionHeader from "../../../_shared/SectionHeader";
 import GraphColorHexRow from "../_shared/GraphColorHexRow";
@@ -192,9 +193,13 @@ export default function OptionsHistogram({
           />
         ))}
         {histGc.bySeries && Object.keys(histGc.bySeries).length > 0 && (
-          <button type="button" className="graphColorResetAll" onClick={resetHistColors}>
-            {t(`${G}.options.colors.resetHistogram`, {}, { default: "Reset histogram colors" })}
-          </button>
+          <Chip
+            label={t(`${G}.options.colors.resetHistogram`, {}, { default: "Reset histogram colors" })}
+            onClick={resetHistColors}
+            leading={<img src="/assets/icons/close.svg" alt="Reset histogram colors" width={16} height={16} style={{ paddingLeft: "4px" }} />}
+            shape="square"
+            style={{ width: "fit-content", fontWeight: 400, fontSize: "12px", color: "#6A6A6A" }}
+            />
         )}
       </div>
 

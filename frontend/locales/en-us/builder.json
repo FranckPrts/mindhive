@@ -488,11 +488,11 @@
 				"canvasUnavailable": "The canvas is not available. Open this workspace on the journal canvas and try again.",
 				"confirmButton": "Export PDF",
 				"confirmWorkspace": "Export the current layout of “{{workspace}}” as a PDF. Component positions and sizes on the canvas will be preserved.",
-				"saveToMediaLibrary": "Also save a copy in my media library (data-tool export, not for text insertion)",
+				"saveToMediaLibrary": "Also save a copy in my media library (not for text insertion, only to re-download later).",
 				"success": "Your PDF has been downloaded.",
 				"successWithMedia": "Your PDF has been downloaded and a copy was saved to your media library.",
 				"title": "Export workspace to PDF",
-				"unsupportedNotice": "Table and code components on this canva are not included in the exported PDF.",
+				"unsupportedNotice": "Table and code components are not included in the exported PDF.",
 				"unsupportedSkipped": "Table and code components were omitted from the PDF."
 			},
 			"onlyUnsupportedTypes": "This canva only has table and code components, which cannot be exported to PDF. Add another component type and try again.",

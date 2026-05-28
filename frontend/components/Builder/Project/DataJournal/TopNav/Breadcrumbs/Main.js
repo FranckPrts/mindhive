@@ -80,7 +80,6 @@ const StyledBreadcrumbs = styled.div`
     border-bottom: 2px solid #f2be42;
     height: 100%;
     padding: 0;
-    border-radius: 4px;
     transition: background-color 0.15s ease;
   }
 

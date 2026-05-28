@@ -11,7 +11,9 @@ import {
   StyledModalHeader,
   StyledModalOverlay,
 } from "../styles/StyledDataSourceModal";
-import { getUnsupportedExportComponents } from "./exportUnsupported";
+import {
+  getUnsupportedExportComponents,
+} from "./exportUnsupported";
 import useCanvaPdfExport from "./useCanvaPdfExport";
 
 const bodyTextStyle = {
@@ -157,7 +159,7 @@ export default function CanvaExportModal({ open, onOpenChange, workspace }) {
                 <p style={noticeStyle} role="note">
                   {t("dataJournal.export.modal.unsupportedNotice", {}, {
                     default:
-                      "Table and code components on this canva are not included in the exported PDF.",
+                      "Table and code components are not included in the exported PDF.",
                   })}
                 </p>
               ) : null}
@@ -174,7 +176,7 @@ export default function CanvaExportModal({ open, onOpenChange, workspace }) {
                   <span>
                     {t("dataJournal.export.modal.saveToMediaLibrary", {}, {
                       default:
-                        "Also save a copy in my media library (data-tool export, not for text insertion)",
+                        "Also save a copy in my media library (not for text insertion, only to re-download later).",
                     })}
                   </span>
                 </label>
