@@ -30,7 +30,7 @@ export const ClassNetwork = list({
     // Stable share/deep-link identifier (Profile/Guest pattern). Prefer this
     // over internal `id` in URLs. Generated on create; updates are locked.
     publicId: text({
-      isIndexed: "unique",
+      // isIndexed: "unique",
       isFilterable: true,
       access: {
         read: () => true,

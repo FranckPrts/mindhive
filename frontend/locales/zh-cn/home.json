@@ -35,6 +35,14 @@
 		"walkthroughTutorial": "演练教程"
 	},
 	"info": "更多信息",
+	"networkAppointmentRequests": {
+		"count": "",
+		"dismiss": "",
+		"open": "",
+		"show": "",
+		"title": "",
+		"untitled": ""
+	},
 	"networkPendingInvites": {
 		"count": "",
 		"dismiss": "",

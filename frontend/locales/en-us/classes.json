@@ -784,6 +784,7 @@
 			"grid": {
 				"columns": {
 					"info": "More information",
+					"infoAppointment": "More information — appointment requested",
 					"infoReturned": "More information — returned",
 					"name": "Opportunity name",
 					"organization": "Organization",

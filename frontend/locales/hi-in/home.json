@@ -35,6 +35,14 @@
 		"walkthroughTutorial": "वॉकथ्रू ट्यूटोरियल"
 	},
 	"info": "अधिक जानकारी",
+	"networkAppointmentRequests": {
+		"count": "",
+		"dismiss": "",
+		"open": "",
+		"show": "",
+		"title": "",
+		"untitled": ""
+	},
 	"networkPendingInvites": {
 		"count": "",
 		"dismiss": "",

@@ -35,6 +35,14 @@
 		"walkthroughTutorial": "Tutorial passo a passo"
 	},
 	"info": "Mais informações",
+	"networkAppointmentRequests": {
+		"count": "",
+		"dismiss": "",
+		"open": "",
+		"show": "",
+		"title": "",
+		"untitled": ""
+	},
 	"networkPendingInvites": {
 		"count": "",
 		"dismiss": "",

@@ -35,6 +35,14 @@
 		"walkthroughTutorial": "دليل إرشادي"
 	},
 	"info": "مزيد من المعلومات",
+	"networkAppointmentRequests": {
+		"count": "",
+		"dismiss": "",
+		"open": "",
+		"show": "",
+		"title": "",
+		"untitled": ""
+	},
 	"networkPendingInvites": {
 		"count": "",
 		"dismiss": "",

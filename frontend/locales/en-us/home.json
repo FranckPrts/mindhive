@@ -35,6 +35,14 @@
 		"walkthroughTutorial": "Walkthrough Tutorial"
 	},
 	"info": "More information",
+	"networkAppointmentRequests": {
+		"count": "{{count}} requested",
+		"dismiss": "Dismiss",
+		"open": "Review",
+		"show": "Show",
+		"title": "Appointment requests",
+		"untitled": "Untitled class"
+	},
 	"networkPendingInvites": {
 		"count": "{{count}} pending",
 		"dismiss": "Dismiss",

@@ -35,6 +35,14 @@
 		"walkthroughTutorial": "Walkthrough-zelfstudie"
 	},
 	"info": "Meer informatie",
+	"networkAppointmentRequests": {
+		"count": "",
+		"dismiss": "",
+		"open": "",
+		"show": "",
+		"title": "",
+		"untitled": ""
+	},
 	"networkPendingInvites": {
 		"count": "",
 		"dismiss": "",

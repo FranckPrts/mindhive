@@ -35,6 +35,14 @@
 		"walkthroughTutorial": "Пошаговое руководство"
 	},
 	"info": "Дополнительная информация",
+	"networkAppointmentRequests": {
+		"count": "",
+		"dismiss": "",
+		"open": "",
+		"show": "",
+		"title": "",
+		"untitled": ""
+	},
 	"networkPendingInvites": {
 		"count": "",
 		"dismiss": "",

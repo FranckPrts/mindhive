@@ -35,6 +35,14 @@
 		"walkthroughTutorial": ""
 	},
 	"info": "अधिक जानकारी",
+	"networkAppointmentRequests": {
+		"count": "",
+		"dismiss": "",
+		"open": "",
+		"show": "",
+		"title": "",
+		"untitled": ""
+	},
 	"networkPendingInvites": {
 		"count": "",
 		"dismiss": "",
