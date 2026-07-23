@@ -51,6 +51,7 @@ const INVITE_QUERY = `
 
 const NETWORK_QUERY = `
   id
+  publicId
   title
   description
   isPublic
@@ -348,6 +349,12 @@ export async function requestClassNetworkMembership(
       email: normalizeEmail(me.email) || undefined,
     },
   });
+
+  await notifyNetworkAdminsOfMembershipRequest(context, {
+    network,
+    requester: me,
+  });
+
   return created;
 }
 
