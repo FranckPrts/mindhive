@@ -449,8 +449,8 @@ export default function MatchingRoundOpportunitiesGrid({
             }
           : {})}
         pagination
-        paginationPageSize={10}
-        paginationPageSizeSelector={[10, 20, 50]}
+        paginationPageSize={50}
+        paginationPageSizeSelector={[50, 100, 200]}
         autoSizeStrategy={{ type: "fitGridWidth", defaultMinWidth: 100 }}
         defaultColDef={{ resizable: true }}
         initialState={{

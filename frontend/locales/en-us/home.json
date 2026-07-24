@@ -137,8 +137,16 @@
 	"termsCondition": "Terms & Conditions",
 	"updateProfileDescription": "You're already a part of the MindHive community! Update your profile by clicking here.",
 	"updates": {
+		"archive": "Archive",
+		"archiveAria": "Archive update",
+		"archiveEmpty": "No archived updates.",
+		"archiveModalTitle": "Archived updates",
+		"dismiss": "Dismiss",
 		"latestUpdates": "Latest updates",
-		"noUpdate": "There are no updates at the moment."
+		"noUpdate": "There are no updates at the moment.",
+		"open": "Open",
+		"show": "Show",
+		"unreadCount": "{{count}} unread"
 	},
 	"walkthroughs": {
 		"availableTours": "Available Tours:",
