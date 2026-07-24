@@ -2227,6 +2227,8 @@ const StyledClass = styled.div`
       border: none;
       margin: 0;
       padding: 0;
+      display: grid;
+      gap: 12px;
     }
 
     .curriculumTypeLegend {
