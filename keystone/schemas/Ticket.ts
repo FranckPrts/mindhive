@@ -8,6 +8,11 @@ import {
   timestamp,
 } from "@keystone-6/core/fields";
 import { permissions } from "../access";
+import {
+  mirrorCreate,
+  mirrorUpdate,
+  touchesMirroredField,
+} from "../lib/notionMirror";
 
 /**
  * A platform ticket, filed from the page it is about.
@@ -157,6 +162,23 @@ export const Ticket = list({
       }
 
       return data;
+    },
+
+    // Mirrors to Notion after the write has landed, so a Notion problem can
+    // never roll back or block a ticket. `mirrorCreate` writes notionPageId
+    // back with sudo, which re-enters this hook — harmless, because
+    // notionPageId is not a mirrored field, so the guard below stops there.
+    afterOperation: async ({ operation, item, resolvedData, context }) => {
+      const id = (item as any)?.id;
+      if (!id) return;
+
+      if (operation === "create") {
+        await mirrorCreate(context, String(id));
+        return;
+      }
+      if (operation === "update" && touchesMirroredField(resolvedData ?? {})) {
+        await mirrorUpdate(context, String(id));
+      }
     },
   },
 });
