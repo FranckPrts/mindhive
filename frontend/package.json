@@ -8,9 +8,10 @@
     "dev": "next dev -p 3000",
     "build": "NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start -p 3000",
-    "lint": "npm run lint:tokens && eslint .",
+    "lint": "npm run lint:tokens && npm run lint:surfaces && eslint .",
     "lint:fix": "eslint . --fix",
-    "lint:tokens": "node scripts/check-tokens.mjs"
+    "lint:tokens": "node scripts/check-tokens.mjs",
+    "lint:surfaces": "node scripts/check-surfaces.mjs"
   },
   "dependencies": {
     "@apollo/client": "^3.7.3",
