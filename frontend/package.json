@@ -11,7 +11,8 @@
     "lint": "npm run lint:tokens && npm run lint:surfaces && eslint .",
     "lint:fix": "eslint . --fix",
     "lint:tokens": "node scripts/check-tokens.mjs",
-    "lint:surfaces": "node scripts/check-surfaces.mjs"
+    "lint:surfaces": "node scripts/check-surfaces.mjs",
+    "check:graphql": "node scripts/check-graphql.mjs"
   },
   "dependencies": {
     "@apollo/client": "^3.7.3",

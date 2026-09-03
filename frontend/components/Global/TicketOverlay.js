@@ -6,7 +6,11 @@ import styled from "styled-components";
 import { UserContext } from "./Authorized";
 import Button from "../DesignSystem/Button";
 import { surfaceForRoute } from "../../lib/surfaces";
-import { CREATE_TICKET, SET_TICKET_STATUS } from "../Mutations/Ticket";
+import {
+  CREATE_TICKET,
+  CREATE_TICKET_WITH_SCREENSHOT,
+  SET_TICKET_STATUS,
+} from "../Mutations/Ticket";
 import { GET_TICKETS_FOR_SURFACE } from "../Queries/Ticket";
 
 /**
@@ -112,7 +116,10 @@ export default function TicketOverlay() {
   const tickets = data?.tickets ?? [];
   const openTickets = tickets.filter((ticket) => OPEN_STATUSES.includes(ticket.status));
 
+  // Two documents, because Keystone's image `upload` input is non-null and
+  // GraphQL cannot omit an input field conditionally. See Mutations/Ticket.js.
   const [createTicket] = useMutation(CREATE_TICKET);
+  const [createTicketWithScreenshot] = useMutation(CREATE_TICKET_WITH_SCREENSHOT);
   const [setTicketStatus] = useMutation(SET_TICKET_STATUS);
 
   // Alt+Shift+T. Alt-based to stay clear of the browser's own chords —
@@ -186,18 +193,20 @@ export default function TicketOverlay() {
     setError(null);
     try {
       const screenshot = await capture();
-      const result = await createTicket({
-        variables: {
-          surface: surfaceKey,
-          title: form.title.trim(),
-          kind: form.kind,
-          priority: form.priority,
-          body: form.description ? { text: form.description } : null,
-          evidence: evidence(),
-          reporterId: user.id,
-          screenshot,
-        },
-      });
+      const variables = {
+        surface: surfaceKey,
+        title: form.title.trim(),
+        kind: form.kind,
+        priority: form.priority,
+        body: form.description ? { text: form.description } : null,
+        evidence: evidence(),
+        reporterId: user.id,
+      };
+      const result = screenshot
+        ? await createTicketWithScreenshot({
+            variables: { ...variables, screenshot },
+          })
+        : await createTicket({ variables });
       setFiled({
         id: result?.data?.createTicket?.id,
         withScreenshot: !!screenshot,
