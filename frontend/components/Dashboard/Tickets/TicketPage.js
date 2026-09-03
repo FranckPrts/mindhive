@@ -7,6 +7,7 @@ import { SET_TICKET_STATUS } from "../../Mutations/Ticket";
 import { getSurface } from "../../../lib/surfaces";
 import BeehiveLoading from "../../DesignSystem/BeehiveLoading";
 import Button from "../../DesignSystem/Button";
+import CopyButton from "../../DesignSystem/CopyButton";
 
 /**
  * One ticket, with the evidence captured when it was filed.
@@ -23,6 +24,8 @@ const STATUSES = [
   { value: "SHIPPED", label: "Shipped" },
   { value: "WONTFIX", label: "Won't fix" },
 ];
+
+const CLOSEABLE = ["OPEN", "ACCEPTED", "IN_PROGRESS"];
 
 const KIND_LABELS = {
   BUG: "Bug",
@@ -150,6 +153,21 @@ export default function TicketPage({ id }) {
         )}
       </StatusBar>
 
+      {CLOSEABLE.includes(ticket.status) && (
+        <Section>
+          <h2 className="MH-Type-Title-Base">Close it from the commit that fixes it</h2>
+          <TrailerRow>
+            <Trailer>{`Fixes-Ticket: ${ticket.id}`}</Trailer>
+            <CopyButton value={`Fixes-Ticket: ${ticket.id}`}>Copy trailer</CopyButton>
+          </TrailerRow>
+          <Caption>
+            Paste this line into the commit message. On merge to main the ticket moves
+            to Shipped here and in Notion, and the commit sha is recorded below — so
+            the board empties in step with the work rather than by hand.
+          </Caption>
+        </Section>
+      )}
+
       {description && (
         <Section>
           <h2 className="MH-Type-Title-Base">What should happen</h2>
@@ -274,6 +292,25 @@ const StatusBar = styled.div`
     background: var(--MH-Theme-Neutrals-White, #ffffff);
     color: var(--MH-Theme-Neutrals-Black, #171717);
   }
+`;
+
+const TrailerRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const Trailer = styled.code`
+  flex: 1 1 20rem;
+  padding: 8px 12px;
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
+  border-radius: 8px;
+  background: var(--MH-Theme-Neutrals-Lighter, #f3f3f3);
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  color: var(--MH-Theme-Neutrals-Black, #171717);
+  word-break: break-all;
 `;
 
 const Section = styled.section`
