@@ -64,6 +64,7 @@ import updateTemplateMilestone from "./updateTemplateMilestone";
 import deleteTemplateMilestone from "./deleteTemplateMilestone";
 import backfillLinkActionCardsToMilestones from "./backfillLinkActionCardsToMilestones";
 import backfillLowercaseKeys from "./backfillLowercaseKeys";
+import backfillTicketPermissions from "./backfillTicketPermissions";
 import backfillProjectBoardFormScope from "./backfillProjectBoardFormScope";
 import backfillProposalBoardPublicIds from "./backfillProposalBoardPublicIds";
 import syncClassTemplateBoards from "./syncClassTemplateBoards";
@@ -84,6 +85,11 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         id: ID!
         updatedCloneCount: Int!
         errors: [String!]!
+      }
+      type BackfillTicketPermissionsResult {
+        dryRun: Boolean!
+        changes: [String!]!
+        holders: [String!]!
       }
       type ToggleFavoriteOpportunityResult {
         isFavorite: Boolean!
@@ -265,6 +271,9 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         # default; pass dryRun:false to apply. Returns a list of change
         # descriptions for the log.
         backfillLowercaseKeys(dryRun: Boolean): [String!]!
+        backfillTicketPermissions(
+          dryRun: Boolean
+        ): BackfillTicketPermissionsResult!
         # One-shot: relocate auto-provisioned FormDefinitions (created
         # by createTemplateMilestone before project_board scope existed)
         # from scope=global to scope=project_board with proposalBoard
@@ -441,6 +450,7 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         backfillMilestoneStatus,
         backfillLinkActionCardsToMilestones,
         backfillLowercaseKeys,
+        backfillTicketPermissions,
         backfillProjectBoardFormScope,
         backfillProposalBoardPublicIds,
         backfillClassNetworkPublicIds,

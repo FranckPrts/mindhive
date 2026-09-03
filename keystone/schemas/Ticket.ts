@@ -1,0 +1,162 @@
+import { list } from "@keystone-6/core";
+import {
+  text,
+  select,
+  json,
+  image,
+  relationship,
+  timestamp,
+} from "@keystone-6/core/fields";
+import { permissions } from "../access";
+
+/**
+ * A platform ticket, filed from the page it is about.
+ *
+ * The anchor is `surface` — a key from the frontend's `lib/surfaces.js`, not a
+ * URL and not a DOM selector. `/dashboard/[area]/[selector]` alone serves 24
+ * areas and the ids in a URL belong to one user's board, so a URL says almost
+ * nothing reusable; generated styled-components class names rule out
+ * selectors. A declared surface key survives refactors, renames, locale
+ * switches and id changes.
+ *
+ * Everything else captured at filing time — the URL instance, viewport,
+ * locale, role, user agent — is evidence, not identity. It lives in
+ * `evidence` and nothing keys on it.
+ *
+ * Access is uniform on `canManageTickets`, which is simpler than `Log`'s
+ * per-event filters and is the right shape while filing and triaging are the
+ * same right. If filing later widens to teachers, split this into per-operation
+ * rules rather than loosening the whole list.
+ */
+const canManageTickets = ({ session }: any) =>
+  permissions.canManageTickets({ session });
+
+export const Ticket = list({
+  access: {
+    operation: {
+      query: canManageTickets,
+      create: canManageTickets,
+      update: canManageTickets,
+      delete: canManageTickets,
+    },
+  },
+  ui: {
+    labelField: "title",
+    listView: {
+      initialColumns: ["title", "surface", "kind", "status", "createdAt"],
+      initialSort: { field: "createdAt", direction: "DESC" },
+    },
+  },
+  fields: {
+    /** Surface key from the frontend registry, e.g. "dashboard.boards". */
+    surface: text({
+      validation: { isRequired: true },
+      isIndexed: true,
+      isFilterable: true,
+    }),
+    title: text({ validation: { isRequired: true } }),
+    kind: select({
+      type: "enum",
+      options: [
+        { label: "Bug — something is broken", value: "BUG" },
+        { label: "Design drift — ships differently than designed", value: "DESIGN_DRIFT" },
+        { label: "Missing — something should be here and isn't", value: "MISSING" },
+        { label: "Copy — wording, translation, tone", value: "COPY" },
+        { label: "Idea — worth considering, not a defect", value: "IDEA" },
+      ],
+      defaultValue: "BUG",
+      isFilterable: true,
+    }),
+    status: select({
+      type: "enum",
+      options: [
+        { label: "Open", value: "OPEN" },
+        { label: "Accepted", value: "ACCEPTED" },
+        { label: "In progress", value: "IN_PROGRESS" },
+        { label: "Shipped", value: "SHIPPED" },
+        { label: "Won't fix", value: "WONTFIX" },
+      ],
+      defaultValue: "OPEN",
+      isFilterable: true,
+    }),
+    priority: select({
+      type: "enum",
+      options: [
+        { label: "Low", value: "LOW" },
+        { label: "Normal", value: "NORMAL" },
+        { label: "High", value: "HIGH" },
+      ],
+      defaultValue: "NORMAL",
+      isFilterable: true,
+    }),
+    /** TipTap document — the editor is already in the frontend. */
+    body: json(),
+    /**
+     * Capture context. Expected shape:
+     * {
+     *   url?: string;          // the instance URL, for reference only
+     *   route?: string;        // router.pathname — the pattern
+     *   area?: string | null;
+     *   selector?: string | null;
+     *   viewport?: { width: number; height: number };
+     *   locale?: string;
+     *   roles?: string[];      // reporter's permission names at filing time
+     *   userAgent?: string;
+     *   domHint?: string;      // best-effort selector, a hint and never an anchor
+     *   commits?: string[];    // shas that moved this ticket, added by CI
+     * }
+     */
+    evidence: json(),
+    /**
+     * Filing-time screenshot. Admin-only by the list access above, and pruned
+     * on a schedule once resolved — a capture of a live class or board can
+     * contain student names and responses. The overlay refuses to capture on
+     * /participate routes at all.
+     */
+    screenshot: image({ storage: "ticketScreenshots" }),
+    /** Figma frame captured from this surface while resolving the ticket. */
+    figmaNodeId: text(),
+    /** Set by the Notion mirror, never by a human. */
+    notionPageId: text({
+      ui: {
+        itemView: { fieldMode: "read" },
+        description: "Written by the Notion mirror. Do not edit.",
+      },
+    }),
+    reporter: relationship({ ref: "Profile.tickets" }),
+    assignee: relationship({ ref: "Profile.assignedTickets" }),
+    // Optional domain context, following Log's pattern: a ticket about a board
+    // can name the board it was filed from without that becoming its identity.
+    proposal: relationship({ ref: "ProposalBoard.tickets" }),
+    class: relationship({ ref: "Class.tickets" }),
+    study: relationship({ ref: "Study.tickets" }),
+    createdAt: timestamp({ defaultValue: { kind: "now" } }),
+    updatedAt: timestamp(),
+    /** When status last moved to SHIPPED or WONTFIX — drives screenshot pruning. */
+    resolvedAt: timestamp(),
+  },
+  hooks: {
+    resolveInput: ({ operation, resolvedData, item }) => {
+      const data: Record<string, unknown> = { ...resolvedData };
+
+      if (operation === "update") {
+        data.updatedAt = new Date().toISOString();
+      }
+
+      // Stamp resolvedAt on the transition into a resolved state, and clear it
+      // on the way back out, so pruning never deletes the screenshot of a
+      // ticket that has been reopened.
+      const resolved = new Set(["SHIPPED", "WONTFIX"]);
+      const nextStatus = resolvedData.status ?? (item as any)?.status;
+      const wasResolved = resolved.has((item as any)?.status);
+      const isResolved = resolved.has(nextStatus);
+      if (isResolved && !wasResolved) {
+        data.resolvedAt = new Date().toISOString();
+      } else if (!isResolved && wasResolved) {
+        data.resolvedAt = null;
+      }
+
+      return data;
+    },
+  },
+});

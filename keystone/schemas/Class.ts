@@ -80,6 +80,10 @@ export const Class = list({
       ref: "Log.class",
       many: true,
     }),
+    tickets: relationship({
+      ref: "Ticket.class",
+      many: true,
+    }),
     formDefinitions: relationship({
       ref: "FormDefinition.class",
       many: true,
