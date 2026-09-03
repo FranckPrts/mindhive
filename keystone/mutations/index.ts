@@ -65,6 +65,7 @@ import deleteTemplateMilestone from "./deleteTemplateMilestone";
 import backfillLinkActionCardsToMilestones from "./backfillLinkActionCardsToMilestones";
 import backfillLowercaseKeys from "./backfillLowercaseKeys";
 import backfillTicketPermissions from "./backfillTicketPermissions";
+import pruneTicketScreenshots from "./pruneTicketScreenshots";
 import backfillProjectBoardFormScope from "./backfillProjectBoardFormScope";
 import backfillProposalBoardPublicIds from "./backfillProposalBoardPublicIds";
 import syncClassTemplateBoards from "./syncClassTemplateBoards";
@@ -85,6 +86,13 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         id: ID!
         updatedCloneCount: Int!
         errors: [String!]!
+      }
+      type PruneTicketScreenshotsResult {
+        dryRun: Boolean!
+        retentionDays: Int!
+        cutoff: String!
+        prunedCount: Int!
+        pruned: [String!]!
       }
       type BackfillTicketPermissionsResult {
         dryRun: Boolean!
@@ -274,6 +282,9 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         backfillTicketPermissions(
           dryRun: Boolean
         ): BackfillTicketPermissionsResult!
+        pruneTicketScreenshots(
+          dryRun: Boolean
+        ): PruneTicketScreenshotsResult!
         # One-shot: relocate auto-provisioned FormDefinitions (created
         # by createTemplateMilestone before project_board scope existed)
         # from scope=global to scope=project_board with proposalBoard
@@ -451,6 +462,7 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         backfillLinkActionCardsToMilestones,
         backfillLowercaseKeys,
         backfillTicketPermissions,
+        pruneTicketScreenshots,
         backfillProjectBoardFormScope,
         backfillProposalBoardPublicIds,
         backfillClassNetworkPublicIds,
