@@ -90,7 +90,7 @@ const Strip = styled.div`
 
     button {
       color: ${({ $collapsed }) =>
-        $collapsed ? "#5f6871" : "var(--MH-Theme-Primary-Base, #337C84)"};
+        $collapsed ? "#5f6871" : "#337C84"};
     }
   }
 

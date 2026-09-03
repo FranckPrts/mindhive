@@ -58,7 +58,7 @@ const PageShell = styled.div`
   box-sizing: border-box;
   background: var(--MH-Theme-Neutrals-White, #ffffff);
   border-radius: 12px;
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #E6E6E6);
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
   overflow: hidden;
 `;
 

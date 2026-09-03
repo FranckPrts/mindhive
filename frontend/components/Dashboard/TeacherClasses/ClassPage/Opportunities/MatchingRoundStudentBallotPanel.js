@@ -92,7 +92,7 @@ const SearchInput = styled.input`
   width: 100%;
   max-width: 280px;
   padding: 10px 14px;
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #d3dae0);
+  border: 1px solid #d3dae0;
   border-radius: 12px;
   background: var(--MH-Theme-Neutrals-White, #ffffff);
   font: var(--MH-Type-Body-Base);
@@ -129,7 +129,7 @@ const QueueHint = styled.p`
 const StudentRow = styled.div`
   border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
   border-radius: 12px;
-  background: var(--MH-Theme-Neutrals-Lighter, #f9f9f9);
+  background: #f9f9f9;
   overflow: hidden;
 `;
 
@@ -208,7 +208,7 @@ const ActiveZoneGroup = styled.div`
   gap: 8px;
   padding: 12px;
   border-radius: 12px;
-  background: var(--MH-Theme-Neutrals-Lighter, #f9f9f9);
+  background: #f9f9f9;
   border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
   box-shadow: 0 1px 2px rgba(23, 23, 23, 0.06);
 `;
@@ -220,7 +220,7 @@ const DetailItem = styled.li`
   gap: 8px 12px;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #e6e6e6);
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
   background: var(--MH-Theme-Neutrals-White, #ffffff);
 `;
 
@@ -234,7 +234,7 @@ const RankBadge = styled.span`
   border-radius: 999px;
   font: var(--MH-Type-Label-Base);
   background: var(--MH-Theme-Neutrals-Lighter, #f3f3f3);
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #e6e6e6);
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
 `;
 
 const ItemTitle = styled.span`

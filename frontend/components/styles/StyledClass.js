@@ -206,7 +206,7 @@ const StyledClass = styled.div`
       color 180ms ease-out;
 
     &:hover {
-      background-color: var(--MH-Theme-tertiary-medium, #D3E0E3);
+      background-color: var(--MH-Theme-Tertiary-Medium, #d3e0e3);
     }
   }
 
@@ -1584,7 +1584,7 @@ const StyledClass = styled.div`
         width: 40px;
         height: 40px;
         border-radius: 10px;
-        background: var(--MH-Theme-Neutrals-Light, #E6E6E6);
+        background: var(--MH-Theme-Neutrals-Light, #e6e6e6);
 
         img {
           width: 20px;
@@ -2031,8 +2031,8 @@ const StyledClass = styled.div`
     .matchingRoundFormPickerLibraryVisibility.isVisible
       .matchingRoundFormPickerVisibilityButton:not(:disabled) {
       background: #F3F3F3 !important;
-      color: var(--MH-Theme-Neutrals-Dark, #6A6A6A) !important;
-      border: 1px solid var(--MH-Theme-Neutrals-Dark, #6A6A6A) !important;
+      color: var(--MH-Theme-Neutrals-Dark, #6a6a6a) !important;
+      border: 1px solid var(--MH-Theme-Neutrals-Dark, #6a6a6a) !important;
     }
 
     .matchingRoundFormPickerLibraryActions {
@@ -2056,7 +2056,7 @@ const StyledClass = styled.div`
     }
 
     .matchingRoundFormPickerLibraryRow.selected {
-      border-color: var(--MH-Theme-Primary-Base, #337c84);
+      border-color: #337c84;
       background: #f0f7f9;
     }
 

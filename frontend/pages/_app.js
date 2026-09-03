@@ -12,6 +12,7 @@ import withData from "../lib/withData";
 
 import "../components/styles/global.css";
 import "../components/DesignSystem/Typography.css";
+import "../components/DesignSystem/Theme.css";
 // Data Journal / Plotly map traces — MapLibre (vendored from maplibre-gl; see next.config.js alias)
 import "../components/styles/maplibre-gl-vendor.css";
 import Site from "../components/Global/Site";
