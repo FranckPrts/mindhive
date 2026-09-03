@@ -608,13 +608,17 @@ const NOTICE_TONES = {
   },
 };
 
+// Falls back rather than throwing: a mistyped tone should make a notice look
+// wrong, not take the whole overlay down with it.
+const tone = (props) => NOTICE_TONES[props.tone] ?? NOTICE_TONES.warn;
+
 const Notice = styled.div`
   margin-bottom: 16px;
   padding: 10px 12px;
   border-radius: 8px;
   font: var(--MH-Type-Body-Small);
-  background: ${(props) => NOTICE_TONES[props.tone].background};
-  color: ${(props) => NOTICE_TONES[props.tone].color};
+  background: ${(props) => tone(props).background};
+  color: ${(props) => tone(props).color};
 
   code {
     font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
