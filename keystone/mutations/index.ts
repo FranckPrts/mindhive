@@ -66,6 +66,7 @@ import backfillLinkActionCardsToMilestones from "./backfillLinkActionCardsToMile
 import backfillLowercaseKeys from "./backfillLowercaseKeys";
 import backfillTicketPermissions from "./backfillTicketPermissions";
 import pruneTicketScreenshots from "./pruneTicketScreenshots";
+import closeTicketsFromCommit from "./closeTicketsFromCommit";
 import backfillProjectBoardFormScope from "./backfillProjectBoardFormScope";
 import backfillProposalBoardPublicIds from "./backfillProposalBoardPublicIds";
 import syncClassTemplateBoards from "./syncClassTemplateBoards";
@@ -86,6 +87,14 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         id: ID!
         updatedCloneCount: Int!
         errors: [String!]!
+      }
+      input TicketCommitInput {
+        sha: String
+        message: String
+      }
+      type CloseTicketsFromCommitResult {
+        closed: [String!]!
+        skipped: [String!]!
       }
       type PruneTicketScreenshotsResult {
         dryRun: Boolean!
@@ -285,6 +294,12 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         pruneTicketScreenshots(
           dryRun: Boolean
         ): PruneTicketScreenshotsResult!
+        # Called by CI, authenticated by a shared secret rather than a
+        # session. See mutations/closeTicketsFromCommit.ts.
+        closeTicketsFromCommit(
+          secret: String!
+          commits: [TicketCommitInput!]!
+        ): CloseTicketsFromCommitResult!
         # One-shot: relocate auto-provisioned FormDefinitions (created
         # by createTemplateMilestone before project_board scope existed)
         # from scope=global to scope=project_board with proposalBoard
@@ -463,6 +478,7 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         backfillLowercaseKeys,
         backfillTicketPermissions,
         pruneTicketScreenshots,
+        closeTicketsFromCommit,
         backfillProjectBoardFormScope,
         backfillProposalBoardPublicIds,
         backfillClassNetworkPublicIds,
