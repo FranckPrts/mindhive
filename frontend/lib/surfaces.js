@@ -350,6 +350,14 @@ export const SURFACES = [
     root: "components/Dashboard/Updates/Main",
     figmaNodeId: null,
   },
+  {
+    key: "dashboard.tickets",
+    label: "Ticket board (admin)",
+    routes: DASHBOARD,
+    areas: ["tickets"],
+    root: "components/Dashboard/Tickets/Main",
+    figmaNodeId: null,
+  },
 
   // ---- Builder ------------------------------------------------------------
   {

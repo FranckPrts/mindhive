@@ -18,6 +18,7 @@ import "../components/styles/maplibre-gl-vendor.css";
 import Site from "../components/Global/Site";
 import Authorized, { UserContext } from "../components/Global/Authorized";
 import HelpCenter from "../components/Global/HelpCenter";
+import TicketOverlay from "../components/Global/TicketOverlay";
 import { localeToBcp47 } from "../lib/localeToBcp47";
 
 // The bar is the only route-change signal; the corner spinner duplicated it.
@@ -89,6 +90,7 @@ function MyApp({ Component, pageProps, apollo }) {
           <LanguageSyncWrapper>
             <Component {...pageProps} />
             <HelpCenter />
+            <TicketOverlay />
           </LanguageSyncWrapper>
         </Authorized>
       </Site>
