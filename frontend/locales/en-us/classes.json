@@ -474,6 +474,8 @@
 		"className": "Class name",
 		"createClassToAppear": "Once you create a class, it will appear here.",
 		"dateCreated": "Date created",
+		"favoriteClass": "Add class to favorites",
+		"unfavoriteClass": "Remove class from favorites",
 		"loadError": "We couldn’t load your classes. Please try again.",
 		"loading": "Loading…",
 		"noClassesMatchSearch": "No classes match your search. Try a different name.",
