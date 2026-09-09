@@ -147,7 +147,7 @@ export default function Settings({ myclass, user }) {
     }
   }, [classNetworks, selectedNetwork]);
 
-  const updateCurriculumTypes = (values) => {
+  const updateCurriculumTypes = async (values) => {
     const normalized = getClassCurriculumTypes({ curriculumTypes: values });
     setCurriculumTypes(normalized);
     const existingSettings =
@@ -821,7 +821,7 @@ export default function Settings({ myclass, user }) {
           <div className="block curriculumTypeBlock">
             <ToggleSwitch
               checked={notifyTeachersOfStudentPasswordReset}
-              disabled={updatingSettings}
+              loading={updatingSettings}
               onChange={updateNotifyTeachersOfStudentPasswordReset}
               label={
                 notifyTeachersOfStudentPasswordReset

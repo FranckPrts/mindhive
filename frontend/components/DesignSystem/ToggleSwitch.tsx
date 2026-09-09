@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import styled from "styled-components";
 import clsx from "clsx";
 
+import LoadingIcon from "./LoadingIcon";
+
 export interface ToggleSwitchProps {
   /**
    * Whether the switch is on.
@@ -28,6 +30,13 @@ export interface ToggleSwitchProps {
    * @default false
    */
   disabled?: boolean;
+  /**
+   * Blocks interaction and shows a leading LoadingIcon beside the label while
+   * an async update is in flight. Keeps the checked track appearance (does not
+   * apply the grey disabled look).
+   * @default false
+   */
+  loading?: boolean;
   /**
    * Optional id for associating a surrounding label via `htmlFor`.
    */
@@ -74,6 +83,10 @@ const StyledToggleSwitch = styled.button`
     cursor: default;
   }
 
+  &.DesignSystem-ToggleSwitch--loading {
+    cursor: default;
+  }
+
   .DesignSystem-ToggleSwitch__thumb {
     display: block;
     width: 24px;
@@ -96,6 +109,9 @@ const StyledToggleSwitchRow = styled.div`
   gap: 12px;
 
   .DesignSystem-ToggleSwitch__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     margin: 0;
     color: var(--MH-Theme-Neutrals-Black, #171717);
     font: var(--MH-Type-Label-Base);
@@ -103,9 +119,13 @@ const StyledToggleSwitchRow = styled.div`
     cursor: pointer;
   }
 
+  &.DesignSystem-ToggleSwitchRow--disabled .DesignSystem-ToggleSwitch__label,
+  &.DesignSystem-ToggleSwitchRow--loading .DesignSystem-ToggleSwitch__label {
+    cursor: default;
+  }
+
   &.DesignSystem-ToggleSwitchRow--disabled .DesignSystem-ToggleSwitch__label {
     color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
-    cursor: default;
   }
 `;
 
@@ -116,6 +136,7 @@ const StyledToggleSwitchRow = styled.div`
  * <ToggleSwitch
  *   checked={enabled}
  *   label="Notify teachers"
+ *   loading={saving}
  *   onChange={setEnabled}
  * />
  */
@@ -124,12 +145,15 @@ export default function ToggleSwitch({
   onChange,
   label,
   disabled = false,
+  loading = false,
   id,
   className,
   "aria-label": ariaLabel,
 }: ToggleSwitchProps) {
+  const isInteractive = !disabled && !loading;
+
   const handleClick = () => {
-    if (disabled) return;
+    if (!isInteractive) return;
     onChange?.(!checked);
   };
 
@@ -139,12 +163,14 @@ export default function ToggleSwitch({
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-busy={loading || undefined}
       aria-label={ariaLabel}
-      disabled={disabled}
+      disabled={disabled || loading}
       className={clsx(
         "DesignSystem-ToggleSwitch",
         checked && "DesignSystem-ToggleSwitch--checked",
-        disabled && "DesignSystem-ToggleSwitch--disabled",
+        disabled && !loading && "DesignSystem-ToggleSwitch--disabled",
+        loading && "DesignSystem-ToggleSwitch--loading",
         !label && className
       )}
       onClick={handleClick}
@@ -161,12 +187,14 @@ export default function ToggleSwitch({
     <StyledToggleSwitchRow
       className={clsx(
         "DesignSystem-ToggleSwitchRow",
-        disabled && "DesignSystem-ToggleSwitchRow--disabled",
+        disabled && !loading && "DesignSystem-ToggleSwitchRow--disabled",
+        loading && "DesignSystem-ToggleSwitchRow--loading",
         className
       )}
     >
       {control}
       <span className="DesignSystem-ToggleSwitch__label" onClick={handleClick}>
+        {loading ? <LoadingIcon size={16} /> : null}
         {label}
       </span>
     </StyledToggleSwitchRow>
