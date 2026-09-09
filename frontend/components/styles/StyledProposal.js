@@ -740,7 +740,7 @@ export const StyledProposal = styled.div`
 
   .header {
     display: grid;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     height: fit-content;
     .headerContent {
       width: 100%;
@@ -840,6 +840,7 @@ export const StyledProposal = styled.div`
       flex-wrap: nowrap;
       gap: 8px;
       width: 100%;
+      min-height: 40px;
       justify-content: flex-start;
       align-items: center;
     }
@@ -848,6 +849,9 @@ export const StyledProposal = styled.div`
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
+      .DesignSystem-ButtonGroup {
+        flex-shrink: 0;
+      }
     }
     .headerDownloadTrigger {
       flex-shrink: 0;
@@ -955,56 +959,6 @@ export const StyledProposal = styled.div`
       .icon {
         color: #171717;
         margin: 0;
-      }
-    }
-    .viewToggleGroup {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      flex-shrink: 0;
-    }
-    .viewToggleButton {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      height: 40px;
-      padding: 8px 24px 8px 16px;
-      border: 1px solid var(--MH-Theme-Neutrals-Medium, #A1A1A1);
-      font: var(--MH-Type-Label-Base);
-      letter-spacing: 0;
-      color: var(--MH-Theme-Neutrals-Black, #171717);
-      cursor: pointer;
-      white-space: nowrap;
-      margin-right: -1px;
-      background: var(--MH-Theme-Neutrals-White, #FFFFFF);
-      box-sizing: border-box;
-      svg {
-        width: 18px;
-        height: 18px;
-        flex-shrink: 0;
-        color: currentColor;
-      }
-      &.left {
-        border-top-left-radius: 100px;
-        border-bottom-left-radius: 100px;
-      }
-      &.right {
-        border-top-right-radius: 100px;
-        border-bottom-right-radius: 100px;
-      }
-      &.active {
-        background: var(--MH-Theme-Neutrals-Lighter, #F3F3F3);
-        color: var(--MH-Theme-Neutrals-Black, #171717);
-        border-color: var(--MH-Theme-Neutrals-Medium, #A1A1A1);
-      }
-      &.inactive {
-        background: var(--MH-Theme-Neutrals-White, #FFFFFF);
-        color: var(--MH-Theme-Neutrals-Dark, #6A6A6A);
-        border-color: var(--MH-Theme-Neutrals-Medium, #A1A1A1);
-      }
-      &:hover {
-        background: var(--MH-Theme-Neutrals-Lighter, #F3F3F3);
       }
     }
     .titleEdit {
