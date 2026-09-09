@@ -19,8 +19,10 @@ import {
   pruneRankingsToOpportunityIds,
 } from "../../../../../lib/opportunityFavoriteRanking";
 import {
-  formatScheduleDate,
+  formatPreferenceWindowInstant,
   getPreferenceTimeWindowState,
+  readPreferenceWindowTimeZone,
+  resolvePreferenceWindowInstantMs,
 } from "../../../../../lib/connectRoundSettings";
 import {
   CREATE_PREFERENCE,
@@ -1156,7 +1158,19 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
       },
     );
   } else if (beforeOpen) {
-    const openDate = formatScheduleDate(round.openAt);
+    const timeZone = readPreferenceWindowTimeZone(round.settings);
+    const openMs = resolvePreferenceWindowInstantMs(
+      round.openAt,
+      "open",
+      timeZone,
+    );
+    const openDate =
+      openMs != null
+        ? formatPreferenceWindowInstant(
+            new Date(openMs).toISOString(),
+            timeZone,
+          )
+        : "";
     lockReason = t(
       "opportunities.studentView.rankForm.lockReason.beforeOpen",
       { date: openDate },
@@ -1166,7 +1180,19 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
       },
     );
   } else if (afterClose) {
-    const closeDate = formatScheduleDate(round.closeAt);
+    const timeZone = readPreferenceWindowTimeZone(round.settings);
+    const closeMs = resolvePreferenceWindowInstantMs(
+      round.closeAt,
+      "close",
+      timeZone,
+    );
+    const closeDate =
+      closeMs != null
+        ? formatPreferenceWindowInstant(
+            new Date(closeMs).toISOString(),
+            timeZone,
+          )
+        : "";
     lockReason = t(
       "opportunities.studentView.rankForm.lockReason.afterClose",
       { date: closeDate },

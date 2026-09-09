@@ -13,8 +13,10 @@ import {
   EditDocumentIcon,
 } from "../../../../DesignSystem/Icons";
 import {
-  formatScheduleDate,
+  formatPreferenceWindowInstant,
   isPreferenceTimeWindowOpen,
+  readPreferenceWindowTimeZone,
+  resolvePreferenceWindowInstantMs,
   visibleSchedulePhases,
 } from "../../../../../lib/connectRoundSettings";
 import { isRoundRankingEditable } from "../../../../../lib/opportunityFavoriteRanking";
@@ -292,8 +294,18 @@ export default function StudentRankActionCard({
 
   const closeAt = round.closeAt;
   const showDue = closeAt && !submitted && isPreferenceTimeWindowOpen(round);
-  const dueDate = showDue ? formatScheduleDate(closeAt) : null;
-  const dueLine = showDue
+  const timeZone = readPreferenceWindowTimeZone(round.settings);
+  const closeMs = showDue
+    ? resolvePreferenceWindowInstantMs(closeAt, "close", timeZone)
+    : null;
+  const dueDate =
+    closeMs != null
+      ? formatPreferenceWindowInstant(
+          new Date(closeMs).toISOString(),
+          timeZone,
+        )
+      : null;
+  const dueLine = showDue && dueDate
     ? t(
         "opportunities.studentView.rankCard.due",
         { date: dueDate },
