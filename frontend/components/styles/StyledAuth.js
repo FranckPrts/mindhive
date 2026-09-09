@@ -13,6 +13,7 @@ const loading = keyframes`
 export const StyledAuth = styled.div`
   display: grid;
   text-align: initial;
+  justify-content: center;
   font: var(--MH-Type-Title-Large);
   letter-spacing: 0;
   label {
@@ -68,6 +69,7 @@ export const StyledAuth = styled.div`
     font: var(--MH-Type-Body-Base);
     letter-spacing: 0;
     text-align: left;
+    padding-bottom: 16px;
   }
   .enterCodeScreen {
     max-width: 340px;

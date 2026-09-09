@@ -36,6 +36,10 @@ export const Class = list({
       ref: "Profile.studentIn",
       many: true,
     }),
+    favoriteBy: relationship({
+      ref: "Profile.favoriteClasses",
+      many: true,
+    }),
     networks: relationship({ ref: "ClassNetwork.classes", many: true }),
     creator: relationship({
       ref: "Profile.teacherIn",

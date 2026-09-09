@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation } from "@apollo/client";
 import { useRouter } from "next/router";
 import useTranslation from "next-translate/useTranslation";
@@ -6,7 +6,22 @@ import styled from "styled-components";
 import { Icon, Dropdown } from "semantic-ui-react";
 
 import { GET_PARTICIPATE_VIEW } from "../../../../Queries/ConnectPreference";
+import { CURRENT_USER_QUERY } from "../../../../Queries/User";
+import { TOGGLE_FAVORITE_OPPORTUNITY } from "../../../../Mutations/Opportunity";
 import { formatOpportunitySponsorLabel } from "../../../../../lib/opportunityPeople";
+import {
+  deriveRankingOpportunityIds,
+  filterRankingEntriesForSave,
+  getDraftDriftedOpportunityIds,
+  getFavoriteOppIdsInRound,
+  isPreferenceSnapshotLocked,
+  isRoundRankingEditable,
+  pruneRankingsToOpportunityIds,
+} from "../../../../../lib/opportunityFavoriteRanking";
+import {
+  formatScheduleDate,
+  getPreferenceTimeWindowState,
+} from "../../../../../lib/connectRoundSettings";
 import {
   CREATE_PREFERENCE,
   UPDATE_PREFERENCE,
@@ -27,18 +42,43 @@ import MessageCard from "../../../../DesignSystem/MessageCard";
 import ClassmateRankList, {
   deriveClassmateOrder,
 } from "./ClassmateRankList";
+import { buildFavoritedTeamProjectsNote, getLargestTeamOpportunity } from "./classmatePickLimitCopy";
+import {
+  getMaxActiveClassmatePicks,
+  getStudentTeamEligibleOpportunities,
+} from "../../../../../lib/connectBallotUtils";
+import {
+  buildStudentMatchingPreference,
+  getMatchingQueue,
+} from "../../../../../lib/connectPreferenceMatchingPreference";
 import FavoriteRankList from "./FavoriteRankList";
 import PreferenceSubmissionReview from "./PreferenceSubmissionReview";
 import PreferenceSubmissionStepper, {
   buildPreferenceStepKeys,
 } from "./PreferenceSubmissionStepper";
 import StudentAssessmentStep from "./StudentAssessmentStep";
+import StudentMatchingPreferenceCard from "./StudentMatchingPreferenceCard";
+import RankingDriftRepairModal from "./RankingDriftRepairModal";
 import {
+  isAssessmentDataEntries,
   isAssessmentFormAnswerComplete,
 } from "../../../../../lib/connectPreferenceAssessmentData";
 
 /** Round/opportunity questions are deferred; keep save paths dormant until re-enabled. */
 const PREFERENCE_QUESTIONS_ENABLED = false;
+
+function hasRankedPreferenceItems(rankings) {
+  return Object.entries(rankings).some(([, r]) => {
+    if (!r) return false;
+    return (
+      (r.rank !== "" && r.rank !== undefined && r.rank !== null) ||
+      (r.starRating !== "" &&
+        r.starRating !== undefined &&
+        r.starRating !== null) ||
+      (r.comment || "").trim()
+    );
+  });
+}
 
 const Card = styled.div`
   display: flex;
@@ -334,47 +374,103 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
   const approvedRoundQuestions = (round?.questions || []).filter(
     (q) => q.status === "approved"
   );
-  const favoriteIds = new Set(
-    [
-      ...(me?.favoriteOpportunities || []),
-      ...(user?.favoriteOpportunities || []),
-    ]
-      .map((o) => o?.id)
-      .filter(Boolean),
-  );
-  const rankedIds = new Set(
-    (existingPreference?.items || [])
-      .map((item) => item.opportunity?.id)
-      .filter(Boolean),
-  );
   const roundOpportunities = round?.opportunities || [];
-  const opportunities = roundOpportunities.filter(
-    (opp) => favoriteIds.has(opp.id) || rankedIds.has(opp.id),
+  const roundOppIdSet = useMemo(
+    () => new Set(roundOpportunities.map((o) => o.id).filter(Boolean)),
+    [roundOpportunities],
+  );
+  const submittedEarly = existingPreference?.status === "submitted";
+  const isRankingEditable =
+    isRoundRankingEditable(round) && !submittedEarly;
+  const isSnapshotLocked = isPreferenceSnapshotLocked({
+    preferenceStatus: existingPreference?.status,
+    isOpen: isRankingEditable,
+  });
+  const favoriteOppIdsInRound = useMemo(
+    () =>
+      getFavoriteOppIdsInRound(
+        me?.favoriteOpportunities ?? user?.favoriteOpportunities,
+        roundOppIdSet,
+      ),
+    [me?.favoriteOpportunities, user?.favoriteOpportunities, roundOppIdSet],
+  );
+  const rankingOppIds = useMemo(
+    () =>
+      deriveRankingOpportunityIds({
+        favoriteOppIdsInRound,
+        existingPreference,
+        isSnapshotLocked,
+      }),
+    [favoriteOppIdsInRound, existingPreference, isSnapshotLocked],
+  );
+  const rankingOppIdsKey = useMemo(
+    () => [...rankingOppIds].sort().join(","),
+    [rankingOppIds],
+  );
+  const opportunities = useMemo(
+    () => roundOpportunities.filter((opp) => rankingOppIds.has(opp.id)),
+    [roundOpportunities, rankingOppIds],
   );
 
   const [roundAnswers, setRoundAnswers] = useState({});
   const [oppAnswers, setOppAnswers] = useState({});
   const [rankings, setRankings] = useState({});
+  const draftDriftEntries = useMemo(
+    () =>
+      getDraftDriftedOpportunityIds({
+        favoriteOppIdsInRound,
+        existingPreference,
+        isSnapshotLocked,
+        localRankings: rankings,
+      }),
+    [
+      favoriteOppIdsInRound,
+      existingPreference,
+      isSnapshotLocked,
+      rankings,
+    ],
+  );
   const [classmateOrder, setClassmateOrder] = useState([]);
   const [notes, setNotes] = useState("");
   const [assessmentData, setAssessmentData] = useState(null);
+  const [studentMatchingPreference, setStudentMatchingPreference] =
+    useState(null);
+  const [matchingPreferenceDraft, setMatchingPreferenceDraft] = useState(null);
+  const [editingMatchingPreference, setEditingMatchingPreference] =
+    useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [assessmentValid, setAssessmentValid] = useState(false);
+  const [driftRepairResolved, setDriftRepairResolved] = useState(false);
+  const [driftRepairLoading, setDriftRepairLoading] = useState(false);
+  const assessmentStepRef = useRef(null);
+  const preferenceIdRef = useRef(existingPreference?.id || null);
+  const preferenceEntity = useMemo(
+    () => ({
+      id: existingPreference?.id,
+      assessmentData,
+    }),
+    [existingPreference?.id, assessmentData],
+  );
 
   const teamEligibleOpps = useMemo(
     () =>
-      roundOpportunities.filter(
-        (o) => o.teamSize > 1 && o.allowsTeamPreferences,
+      getStudentTeamEligibleOpportunities(
+        roundOpportunities,
+        favoriteOppIdsInRound,
       ),
-    [roundOpportunities],
+    [roundOpportunities, favoriteOppIdsInRound],
   );
   const teamEligibleOppIds = useMemo(
     () => teamEligibleOpps.map((o) => o.id).filter(Boolean),
     [teamEligibleOpps],
   );
   const hasTeamOpps = teamEligibleOpps.length > 0;
-  const maxClassmatePicks = hasTeamOpps
-    ? Math.max(...teamEligibleOpps.map((o) => (o.teamSize || 1) - 1), 0)
-    : 0;
+  const effectivePicks = getMaxActiveClassmatePicks(teamEligibleOpps);
+  const largestTeamOpp = getLargestTeamOpportunity(teamEligibleOpps);
+  const favoritedTeamProjectsNote = buildFavoritedTeamProjectsNote(
+    teamEligibleOpps,
+    t,
+  );
 
   const networkStudents = (() => {
     const map = new Map();
@@ -385,6 +481,15 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
     });
     return Array.from(map.values());
   })();
+
+  useEffect(() => {
+    setDriftRepairResolved(false);
+  }, [round?.id, existingPreference?.id]);
+
+  useEffect(() => {
+    if (isSnapshotLocked) return;
+    setRankings((prev) => pruneRankingsToOpportunityIds(prev, rankingOppIds));
+  }, [rankingOppIdsKey, isSnapshotLocked, rankingOppIds]);
 
   useEffect(() => {
     const raw = router.query.step;
@@ -431,6 +536,12 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
     const r = {};
     (existingPreference?.items || []).forEach((item) => {
       if (!item.opportunity?.id) return;
+      if (
+        !isSnapshotLocked &&
+        !favoriteOppIdsInRound.has(item.opportunity.id)
+      ) {
+        return;
+      }
       r[item.opportunity.id] = {
         rank: item.rank ?? "",
         starRating: item.starRating ?? "",
@@ -444,9 +555,25 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
     );
 
     setNotes(existingPreference?.notes || "");
-    setAssessmentData(existingPreference?.assessmentData || null);
+    setAssessmentData((prev) => {
+      const incoming = existingPreference?.assessmentData || null;
+      if (isAssessmentDataEntries(prev) && !isAssessmentDataEntries(incoming)) {
+        return prev;
+      }
+      return incoming;
+    });
+    const savedMatching = existingPreference?.studentMatchingPreference || null;
+    setStudentMatchingPreference(savedMatching);
+    setMatchingPreferenceDraft(getMatchingQueue(savedMatching));
+    setEditingMatchingPreference(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round?.id, existingPreference?.id, teamEligibleOppIds.join(",")]);
+  }, [
+    round?.id,
+    existingPreference?.id,
+    teamEligibleOppIds.join(","),
+    isSnapshotLocked,
+    favoriteOppIdsInRound,
+  ]);
 
   const [createPreference] = useMutation(CREATE_PREFERENCE);
   const [updatePreference] = useMutation(UPDATE_PREFERENCE);
@@ -457,12 +584,25 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
   const [createQuestionAnswers] = useMutation(CREATE_QUESTION_ANSWERS);
   const [createRating] = useMutation(CREATE_RATING);
   const [updateRating] = useMutation(UPDATE_RATING);
+  const [restoreFavorites] = useMutation(TOGGLE_FAVORITE_OPPORTUNITY, {
+    refetchQueries: [
+      { query: CURRENT_USER_QUERY },
+      { query: GET_PARTICIPATE_VIEW, variables: { roundId } },
+    ],
+    awaitRefetchQueries: true,
+  });
 
   const [saving, setSaving] = useState(false);
   const [ratingDrafts, setRatingDrafts] = useState({});
   const [savingRatingId, setSavingRatingId] = useState(null);
   const [formSaveFeedback, setFormSaveFeedback] = useState(null);
   const [assessmentSaveFeedback, setAssessmentSaveFeedback] = useState(null);
+
+  useEffect(() => {
+    if (existingPreference?.id) {
+      preferenceIdRef.current = existingPreference.id;
+    }
+  }, [existingPreference?.id]);
 
   const setScopedSaveFeedback = (scope, feedback) => {
     if (scope === "assessment") {
@@ -500,6 +640,8 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
         : "form");
 
     const nextAssessmentData = assessmentDataOverride ?? assessmentData;
+    const nextMatchingPreference =
+      options.studentMatchingPreferenceOverride ?? studentMatchingPreference;
 
     if (targetStatus === "submitted") {
       if (
@@ -521,17 +663,22 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
         return false;
       }
 
-      const hasItems = Object.entries(rankings).some(([, r]) => {
-        if (!r) return false;
-        return (
-          (r.rank !== "" && r.rank !== undefined && r.rank !== null) ||
-          (r.starRating !== "" &&
-            r.starRating !== undefined &&
-            r.starRating !== null) ||
-          (r.comment || "").trim()
-        );
-      });
-      if (!hasItems) {
+      if (!getMatchingQueue(nextMatchingPreference)) {
+        setScopedSaveFeedback("form", {
+          variant: "warning",
+          message: t(
+            "opportunities.studentView.rankForm.matchingPreference.required",
+            {},
+            {
+              default:
+                "Choose Team first or Project first before ranking classmates or opportunities.",
+            },
+          ),
+        });
+        return false;
+      }
+
+      if (!hasRankedPreferenceItems(rankings)) {
         setScopedSaveFeedback("form", {
           variant: "warning",
           message: t(
@@ -609,18 +756,14 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
     setSaving(true);
     try {
       // 1) Build items from rankings
-      const items = Object.entries(rankings)
-        .filter(
-          ([, r]) =>
-            r &&
-            (r.rank !== "" || r.starRating !== "" || (r.comment || "").trim())
-        )
-        .map(([oppId, r]) => ({
-          opportunity: { connect: { id: oppId } },
-          rank: r.rank === "" ? null : Number(r.rank),
-          starRating: r.starRating === "" ? null : Number(r.starRating),
-          comment: r.comment || "",
-        }));
+      const items = filterRankingEntriesForSave(rankings, rankingOppIds, {
+        isSnapshotLocked,
+      }).map(([oppId, r]) => ({
+        opportunity: { connect: { id: oppId } },
+        rank: r.rank === "" ? null : Number(r.rank),
+        starRating: r.starRating === "" ? null : Number(r.starRating),
+        comment: r.comment || "",
+      }));
 
       // 2) Wipe existing items, then upsert preference with new items
       if (existingPreference?.items?.length) {
@@ -634,22 +777,25 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
       const submittedAt =
         targetStatus === "submitted" ? new Date().toISOString() : null;
 
-      if (existingPreference?.id) {
+      const preferenceId = existingPreference?.id || preferenceIdRef.current;
+
+      if (preferenceId) {
         await updatePreference({
           variables: {
-            id: existingPreference.id,
+            id: preferenceId,
             input: {
               status: targetStatus,
               notes,
               submittedAt,
               assessmentData: nextAssessmentData,
+              studentMatchingPreference: nextMatchingPreference,
               items: items.length ? { create: items } : undefined,
               updatedAt: new Date().toISOString(),
             },
           },
         });
       } else {
-        await createPreference({
+        const created = await createPreference({
           variables: {
             input: {
               round: { connect: { id: round.id } },
@@ -658,14 +804,22 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
               notes,
               submittedAt,
               assessmentData: nextAssessmentData,
+              studentMatchingPreference: nextMatchingPreference,
               items: items.length ? { create: items } : undefined,
             },
           },
         });
+        const createdId = created?.data?.createConnectPreference?.id;
+        if (createdId) preferenceIdRef.current = createdId;
       }
 
       if (assessmentDataOverride) {
         setAssessmentData(nextAssessmentData);
+      }
+      if (options.studentMatchingPreferenceOverride) {
+        setStudentMatchingPreference(nextMatchingPreference);
+        setMatchingPreferenceDraft(getMatchingQueue(nextMatchingPreference));
+        setEditingMatchingPreference(false);
       }
 
       // 3) Wipe + recreate question answers (deferred while questions UI is hidden)
@@ -725,33 +879,35 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
 
       await refetch();
 
-      if (targetStatus === "submitted") {
-        setScopedSaveFeedback("form", {
-          variant: "success",
-          message: t(
-            "opportunities.studentView.rankForm.submitSuccess",
-            {},
-            { default: "Your preferences were submitted." },
-          ),
-        });
-      } else if (feedbackScope === "assessment") {
-        setScopedSaveFeedback("assessment", {
-          variant: "success",
-          message: t(
-            "opportunities.studentView.rankForm.assessmentSaveSuccess",
-            {},
-            { default: "Your assessment answers were saved." },
-          ),
-        });
-      } else {
-        setScopedSaveFeedback("form", {
-          variant: "success",
-          message: t(
-            "opportunities.studentView.rankForm.draftSaveSuccess",
-            {},
-            { default: "Your progress was saved." },
-          ),
-        });
+      if (!options.skipSuccessFeedback) {
+        if (targetStatus === "submitted") {
+          setScopedSaveFeedback("form", {
+            variant: "success",
+            message: t(
+              "opportunities.studentView.rankForm.submitSuccess",
+              {},
+              { default: "Your preferences were submitted." },
+            ),
+          });
+        } else if (feedbackScope === "assessment") {
+          setScopedSaveFeedback("assessment", {
+            variant: "success",
+            message: t(
+              "opportunities.studentView.rankForm.assessmentSaveSuccess",
+              {},
+              { default: "Your assessment answers were saved." },
+            ),
+          });
+        } else {
+          setScopedSaveFeedback("form", {
+            variant: "success",
+            message: t(
+              "opportunities.studentView.rankForm.draftSaveSuccess",
+              {},
+              { default: "Your progress was saved." },
+            ),
+          });
+        }
       }
       return true;
     } catch (error) {
@@ -917,17 +1073,72 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
   }
 
   const now = Date.now();
-  const openAtMs = round.openAt ? new Date(round.openAt).getTime() : null;
-  const closeAtMs = round.closeAt ? new Date(round.closeAt).getTime() : null;
-  const beforeOpen = openAtMs && now < openAtMs;
-  const afterClose = closeAtMs && now > closeAtMs;
-  const inTimeWindow = !beforeOpen && !afterClose;
-  const submitted = existingPreference?.status === "submitted";
-  // Once submitted, lock the form. Students still see what they sent.
-  // (If the round re-opens after a teacher pushed status back, the form
-  // unlocks automatically because `submitted` is recomputed from data.)
-  const isOpen =
-    round.status === "preferences_open" && inTimeWindow && !submitted;
+  const { beforeOpen, afterClose } = getPreferenceTimeWindowState(round, now);
+  const submitted = submittedEarly;
+  const isOpen = isRankingEditable;
+  const showDriftRepairModal =
+    isRankingEditable && draftDriftEntries.length > 0 && !driftRepairResolved;
+
+  const handleRestoreDriftFavorites = async () => {
+    if (!me?.id || !draftDriftEntries.length) return;
+    setDriftRepairLoading(true);
+    try {
+      await restoreFavorites({
+        variables: {
+          profileId: me.id,
+          input: {
+            favoriteOpportunities: {
+              connect: draftDriftEntries.map((entry) => ({ id: entry.oppId })),
+            },
+          },
+        },
+      });
+      setDriftRepairResolved(true);
+      await refetch();
+    } catch (error) {
+      console.error("Failed to restore drift favorites", error);
+      setScopedSaveFeedback("form", {
+        variant: "warning",
+        message: t("opportunities.studentView.rankForm.saveFailed", {}, {
+          default: "Could not save your progress. Please try again.",
+        }),
+      });
+    } finally {
+      setDriftRepairLoading(false);
+    }
+  };
+
+  const handleRemoveDriftFromDraft = async () => {
+    if (!draftDriftEntries.length) return;
+    setDriftRepairLoading(true);
+    try {
+      const itemIds = draftDriftEntries
+        .map((entry) => entry.itemId)
+        .filter(Boolean);
+      if (itemIds.length) {
+        await deletePreferenceItems({
+          variables: {
+            where: itemIds.map((id) => ({ id })),
+          },
+        });
+      }
+      setRankings((prev) =>
+        pruneRankingsToOpportunityIds(prev, favoriteOppIdsInRound),
+      );
+      setDriftRepairResolved(true);
+      await refetch();
+    } catch (error) {
+      console.error("Failed to remove drifted draft ranking items", error);
+      setScopedSaveFeedback("form", {
+        variant: "warning",
+        message: t("opportunities.studentView.rankForm.saveFailed", {}, {
+          default: "Could not save your progress. Please try again.",
+        }),
+      });
+    } finally {
+      setDriftRepairLoading(false);
+    }
+  };
 
   let lockReason = null;
   if (round.status === "draft") {
@@ -936,18 +1147,48 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
         "This round is not available yet. Your teacher is still setting it up.",
     });
   } else if (round.status !== "preferences_open") {
-    lockReason = `Preferences are ${round.status.replace("_", " ")} for this round. You can review what you submitted, but changes are no longer accepted.`;
+    lockReason = t(
+      "opportunities.studentView.rankForm.lockReason.roundClosed",
+      { status: round.status.replace(/_/g, " ") },
+      {
+        default:
+          "Preferences are {{status}} for this round. You can review what you submitted, but changes are no longer accepted.",
+      },
+    );
   } else if (beforeOpen) {
-    const openDate = new Date(round.openAt).toLocaleDateString();
-    lockReason = `This round opens on ${openDate}. Come back then to submit your preferences.`;
+    const openDate = formatScheduleDate(round.openAt);
+    lockReason = t(
+      "opportunities.studentView.rankForm.lockReason.beforeOpen",
+      { date: openDate },
+      {
+        default:
+          "This round opens on {{date}}. Come back then to submit your preferences.",
+      },
+    );
   } else if (afterClose) {
-    const closeDate = new Date(round.closeAt).toLocaleDateString();
-    lockReason = `Preferences closed on ${closeDate}. You can review what you submitted, but changes are no longer accepted.`;
+    const closeDate = formatScheduleDate(round.closeAt);
+    lockReason = t(
+      "opportunities.studentView.rankForm.lockReason.afterClose",
+      { date: closeDate },
+      {
+        default:
+          "Preferences closed on {{date}}. You can review what you submitted, but changes are no longer accepted.",
+      },
+    );
   } else if (submitted) {
     const when = existingPreference?.submittedAt
       ? new Date(existingPreference.submittedAt).toLocaleString()
-      : "earlier";
-    lockReason = `You submitted your preferences ${when}. Need to change something? Ask your teacher — they can reopen your submission.`;
+      : t("opportunities.studentView.rankForm.lockReason.submittedEarlier", {}, {
+          default: "earlier",
+        });
+    lockReason = t(
+      "opportunities.studentView.rankForm.lockReason.submitted",
+      { when },
+      {
+        default:
+          "You submitted your preferences {{when}}. Need to change something? Ask your teacher — they can reopen your submission.",
+      },
+    );
   }
 
   const pageTitle = round.title || "";
@@ -960,40 +1201,265 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
           default: "Draft saved",
         })
     : null;
-  const handleSaveDraft = () => handleSave("draft");
-  const handleSubmitPreferences = () => handleSave("submitted");
 
-  const preferenceEntity = {
-    id: existingPreference?.id,
-    assessmentData,
+  // Editable ranking with round opportunities available, but nothing favorited yet
+  // (covers both first entry before a draft exists, and an existing draft).
+  // Submitted/closed rankings stay reviewable; drift repair takes precedence.
+  const showEmptyFavoritesZeroState =
+    isOpen &&
+    !submitted &&
+    favoriteOppIdsInRound.size === 0 &&
+    roundOpportunities.length > 0 &&
+    !showDriftRepairModal;
+
+  if (showEmptyFavoritesZeroState) {
+    return (
+      <RankPageShell>
+        <RankFormChrome
+          title={pageTitle}
+          backLabel={backLabel}
+          onBack={handleCancel}
+          statusChipLabel={statusChipLabel}
+          submitted={submitted}
+        />
+        <RankPageBody>
+          <Card>
+            <h2>
+              {t(
+                "opportunities.studentView.rankForm.emptyFavoritesTitle",
+                {},
+                { default: "No favorited opportunities yet" },
+              )}
+            </h2>
+            <p className="helper">
+              {t(
+                "opportunities.studentView.rankForm.emptyFavoritesHint",
+                {},
+                {
+                  default:
+                    "Go back and tap the star on the opportunities you want to rank.",
+                },
+              )}
+            </p>
+            <Button type="button" variant="filled" onClick={handleCancel}>
+              {t(
+                "opportunities.studentView.rankForm.addFavorites",
+                {},
+                { default: "Add favorites" },
+              )}
+            </Button>
+          </Card>
+        </RankPageBody>
+      </RankPageShell>
+    );
+  }
+
+  const handleSaveDraft = async () => {
+    const stepKey = stepKeys[currentStep - 1] || stepKeys[0];
+    if (
+      stepKey === "assessment" &&
+      typeof assessmentStepRef.current?.save === "function"
+    ) {
+      return assessmentStepRef.current.save({
+        skipValidation: true,
+        feedbackScope: "form",
+      });
+    }
+    return handleSave("draft");
+  };
+  const handleSubmitPreferences = async () => {
+    if (includeAssessment) {
+      const assessmentStep = stepKeys.indexOf("assessment") + 1;
+      const saved = await assessmentStepRef.current?.save?.({
+        skipValidation: false,
+        feedbackScope: "form",
+        skipSuccessFeedback: true,
+      });
+      if (saved === false || saved == null) {
+        if (assessmentStep >= 1) goToStep(assessmentStep);
+        return false;
+      }
+      const assessmentDataOverride = saved === true ? assessmentData : saved;
+      return handleSave("submitted", {
+        assessmentDataOverride,
+        feedbackScope: "form",
+      });
+    }
+    return handleSave("submitted");
   };
 
-  const handleSaveAssessment = async (nextAssessmentData) => {
+  const persistAssessmentDraft = async (
+    nextAssessmentData,
+    { manageSaving = true } = {},
+  ) => {
+    if (!round) return false;
+    if (manageSaving) setSaving(true);
+    try {
+      const preferenceId = existingPreference?.id || preferenceIdRef.current;
+      if (preferenceId) {
+        await updatePreference({
+          variables: {
+            id: preferenceId,
+            input: {
+              assessmentData: nextAssessmentData,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        });
+      } else {
+        const created = await createPreference({
+          variables: {
+            input: {
+              round: { connect: { id: round.id } },
+              role: "student",
+              status: "draft",
+              assessmentData: nextAssessmentData,
+            },
+          },
+        });
+        const createdId = created?.data?.createConnectPreference?.id;
+        if (createdId) preferenceIdRef.current = createdId;
+      }
+      setAssessmentData(nextAssessmentData);
+      return true;
+    } catch (error) {
+      console.error("Failed to save student assessment", error);
+      setScopedSaveFeedback("form", {
+        variant: "warning",
+        message: t(
+          "opportunities.studentView.rankForm.saveFailed",
+          {},
+          {
+            default: "Could not save your progress. Please try again.",
+          },
+        ),
+      });
+      return false;
+    } finally {
+      if (manageSaving) setSaving(false);
+    }
+  };
+
+  const handleSaveAssessment = async (nextAssessmentData, options = {}) => {
+    if (options.skipSuccessFeedback) {
+      return persistAssessmentDraft(nextAssessmentData, {
+        manageSaving: options.manageSaving !== false,
+      });
+    }
     return handleSave("draft", {
       assessmentDataOverride: nextAssessmentData,
-      feedbackScope: "assessment",
+      feedbackScope: options.feedbackScope || "assessment",
     });
   };
 
-  const handleAssessmentValidationFailed = () => {
-    setAssessmentSaveFeedback({
-      variant: "warning",
-      message: t(
-        "opportunities.studentView.rankForm.assessmentValidationFailed",
-        {},
-        {
-          default:
-            "Fix the highlighted fields before saving your assessment.",
-        },
-      ),
-    });
+  const handleSaveMatchingPreference = async (queue) => {
+    if (!round || !queue) return false;
+    const next = buildStudentMatchingPreference(queue);
+    setSaving(true);
+    try {
+      let nextAssessmentData = assessmentData;
+      if (includeAssessment && typeof assessmentStepRef.current?.save === "function") {
+        const saved = await assessmentStepRef.current.save({
+          skipValidation: true,
+          skipSuccessFeedback: true,
+          manageSaving: false,
+          feedbackScope: "assessment",
+        });
+        if (saved !== false && saved != null && saved !== true) {
+          nextAssessmentData = saved;
+        }
+      }
+
+      const preferenceId = existingPreference?.id || preferenceIdRef.current;
+      if (preferenceId) {
+        await updatePreference({
+          variables: {
+            id: preferenceId,
+            input: {
+              studentMatchingPreference: next,
+              ...(nextAssessmentData != null
+                ? { assessmentData: nextAssessmentData }
+                : {}),
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        });
+      } else {
+        const created = await createPreference({
+          variables: {
+            input: {
+              round: { connect: { id: round.id } },
+              role: "student",
+              status: "draft",
+              studentMatchingPreference: next,
+              assessmentData: nextAssessmentData,
+            },
+          },
+        });
+        const createdId = created?.data?.createConnectPreference?.id;
+        if (createdId) preferenceIdRef.current = createdId;
+      }
+      setStudentMatchingPreference(next);
+      setMatchingPreferenceDraft(queue);
+      setEditingMatchingPreference(false);
+      if (nextAssessmentData != null) {
+        setAssessmentData(nextAssessmentData);
+      }
+      await refetch();
+      return true;
+    } catch (error) {
+      console.error("Failed to save matching preference", error);
+      setScopedSaveFeedback("form", {
+        variant: "warning",
+        message: t(
+          "opportunities.studentView.rankForm.saveFailed",
+          {},
+          {
+            default: "Could not save your progress. Please try again.",
+          },
+        ),
+      });
+      return false;
+    } finally {
+      setSaving(false);
+    }
   };
 
   const currentStepKey = stepKeys[currentStep - 1] || stepKeys[0];
+  const savedMatchingQueue = getMatchingQueue(studentMatchingPreference);
+  const rankingEnabled =
+    isOpen && Boolean(savedMatchingQueue) && !showDriftRepairModal;
+
+  const matchingPreferenceCard = (
+    <StudentMatchingPreferenceCard
+      tab={currentStepKey === "opportunities" ? "opportunities" : "classmates"}
+      selectedQueue={matchingPreferenceDraft}
+      onSelect={setMatchingPreferenceDraft}
+      savedQueue={savedMatchingQueue}
+      isEditing={editingMatchingPreference}
+      isOpen={isOpen}
+      saving={saving}
+      onConfirm={handleSaveMatchingPreference}
+      onStartChange={() => setEditingMatchingPreference(true)}
+    />
+  );
 
   const savingLabel = t("opportunities.studentView.rankForm.saving", {}, {
     default: "Saving…",
   });
+  const submitDisabledHint = t(
+    "opportunities.studentView.rankForm.submitDisabledHint",
+    {},
+    {
+      default:
+        "Answer all required fields on every tab before submitting.",
+    },
+  );
+  const canSubmitPreferences =
+    !saving &&
+    (!includeAssessment || assessmentValid) &&
+    Boolean(savedMatchingQueue) &&
+    hasRankedPreferenceItems(rankings);
   const headerSubmitActions = isOpen ? (
     <>
       <Button
@@ -1012,7 +1478,13 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
         type="button"
         variant="filled"
         onClick={handleSubmitPreferences}
-        disabled={saving}
+        disabled={!canSubmitPreferences}
+        title={!canSubmitPreferences && !saving ? submitDisabledHint : undefined}
+        aria-label={
+          !canSubmitPreferences && !saving
+            ? submitDisabledHint
+            : undefined
+        }
       >
         {saving
           ? savingLabel
@@ -1361,22 +1833,25 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
           onStepChange={goToStep}
           includeAssessment={includeAssessment}
         >
-          {currentStepKey === "assessment" && (
-            <StudentAssessmentStep
-              formDefinitionId={assessmentFormId}
-              preferenceEntity={preferenceEntity}
-              isOpen={isOpen}
-              locale={locale}
-              onSaveAssessment={handleSaveAssessment}
-              onValidationFailed={handleAssessmentValidationFailed}
-              saving={saving}
-              saveFeedback={assessmentSaveFeedback}
-              onDismissSaveFeedback={clearAssessmentSaveFeedback}
-            />
-          )}
+          {includeAssessment ? (
+            <div hidden={currentStepKey !== "assessment"}>
+              <StudentAssessmentStep
+                ref={assessmentStepRef}
+                formDefinitionId={assessmentFormId}
+                preferenceEntity={preferenceEntity}
+                isOpen={isOpen}
+                locale={locale}
+                onSaveAssessment={handleSaveAssessment}
+                onValidityChange={setAssessmentValid}
+                saveFeedback={assessmentSaveFeedback}
+                onDismissSaveFeedback={clearAssessmentSaveFeedback}
+              />
+            </div>
+          ) : null}
 
           {currentStepKey === "classmates" && (
             <>
+              {matchingPreferenceCard}
               <h2>
                 {t("opportunities.studentView.rankForm.classmatesHeading", {}, {
                   default: "Rank your classmates",
@@ -1385,17 +1860,27 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
               {hasTeamOpps ? (
                 <>
                   <p className="helper">
-                    {t("opportunities.studentView.rankForm.classmatesHelper", {}, {
-                      default:
-                        "Pick classmates you'd like on your team. Order matters — 1 is your top choice.",
-                    })}
+                    {t(
+                      "opportunities.studentView.rankForm.classmatesHelper",
+                      {
+                        count: effectivePicks,
+                        title: largestTeamOpp?.title || "",
+                      },
+                      {
+                        default:
+                          "You'll be on a team with {{count}} other classmates (based on the largest favorited team: {{title}}). Pick the {{count}} classmates you want with you. Drag to order them. Your top {{count}} are highlighted, and those are the ones that count. To be placed together, all of you have to pick each other. Add more names below as backups.",
+                      },
+                    )}
                   </p>
+                  {favoritedTeamProjectsNote ? (
+                    <p className="helper">{favoritedTeamProjectsNote}</p>
+                  ) : null}
                   <ClassmateRankList
                     students={networkStudents}
                     classmateOrder={classmateOrder}
                     onClassmateOrderChange={setClassmateOrder}
-                    maxPicks={maxClassmatePicks}
-                    rankingEnabled={isOpen}
+                    effectivePicks={effectivePicks}
+                    rankingEnabled={rankingEnabled}
                   />
                 </>
               ) : (
@@ -1415,6 +1900,7 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
 
           {currentStepKey === "opportunities" && (
             <>
+              {matchingPreferenceCard}
               <h2>
                 {t("opportunities.studentView.rankForm.rankHeading", {}, {
                   default: "Rank your favorites",
@@ -1423,7 +1909,7 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
               <p className="helper">
                 {t("opportunities.studentView.rankForm.rankHelper", {}, {
                   default:
-                    "Drag to set your order (1 = top choice). Rate each opportunity and add a private note for your teacher.",
+                    "Drag to set your order (1 = top choice). Add a private note for your teacher if you like.",
                 })}
               </p>
               {opportunities.length === 0 && (
@@ -1456,8 +1942,8 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
                   opportunities={opportunities}
                   rankings={rankings}
                   onRankingsChange={updateRankings}
-                  rankingEnabled={isOpen}
-                  syncKey={`${existingPreference?.id || "new"}:${opportunities.map((o) => o.id).join(",")}`}
+                  rankingEnabled={rankingEnabled}
+                  syncKey={`${existingPreference?.id || "new"}:${rankingOppIdsKey}`}
                   now={now}
                 />
               ) : null}
@@ -1474,6 +1960,8 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
               <PreferenceSubmissionReview
                 students={networkStudents}
                 classmateOrder={classmateOrder}
+                effectivePicks={effectivePicks}
+                teamEligibleOpportunities={teamEligibleOpps}
                 opportunities={opportunities}
                 rankings={rankings}
                 notes={notes}
@@ -1485,6 +1973,13 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
         </PreferenceSubmissionStepper>
       </Card>
       </RankPageBody>
+      <RankingDriftRepairModal
+        open={showDriftRepairModal}
+        driftCount={draftDriftEntries.length}
+        onRestoreFavorites={handleRestoreDriftFavorites}
+        onRemoveFromDraft={handleRemoveDriftFromDraft}
+        loading={driftRepairLoading}
+      />
     </RankPageShell>
   );
 }

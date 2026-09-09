@@ -27,8 +27,10 @@
 // each field's storage/column configuration. The only allowlisted exception
 // is the managed intro-video field (storage=column → Opportunity.videoFile).
 //
-// Imperative API (via ref): `save()` runs the same path as the submit button
-// so parents can drive Save from a top bar while `hideSaveButton` is set.
+// Imperative API (via ref): `save({ skipValidation }?)` runs the same path as
+// the submit button so parents can drive Save from a top bar while
+// `hideSaveButton` is set. Pass `skipValidation: true` to persist a draft
+// without required-field checks (JSON-backed answers only).
 import {
   forwardRef,
   useMemo,
@@ -36,6 +38,7 @@ import {
   useEffect,
   useCallback,
   useImperativeHandle,
+  useRef,
 } from "react";
 import { useQuery } from "@apollo/client";
 import useTranslation from "next-translate/useTranslation";
@@ -227,6 +230,8 @@ function buildSelectValidationBanner(failingLabels, t) {
   );
 }
 
+const EMPTY_VIEWER_ROLES = [];
+
 const DefinitionForm = forwardRef(function DefinitionForm(
   {
     definitionKey,
@@ -238,7 +243,7 @@ const DefinitionForm = forwardRef(function DefinitionForm(
     entity,
     related = {},
     scopeContext = {},
-    viewerRoles = [],
+    viewerRoles = EMPTY_VIEWER_ROLES,
     locale = "en",
     onSubmit,
     saveLabel = "Save",
@@ -251,6 +256,8 @@ const DefinitionForm = forwardRef(function DefinitionForm(
     hideUnansweredFields = false,
     /** Flatter card chrome (e.g. inside a DesignSystem Modal). */
     quiet = false,
+    /** Called when required-field validity of visible fields changes. */
+    onValidityChange,
   },
   ref,
 ) {
@@ -397,7 +404,6 @@ const DefinitionForm = forwardRef(function DefinitionForm(
       proposalData: flatAnswer,
     };
   }, [
-    entity,
     entity?.id,
     entity?.proposalData,
     entity?.assessmentData,
@@ -416,14 +422,31 @@ const DefinitionForm = forwardRef(function DefinitionForm(
 
   const entityStatus = values.status ?? entity?.status ?? null;
 
-  // Hydrate values whenever the definition, entity, or related entities change.
+  const assessmentHydrateSource = forceAssessmentEntry
+    ? entity?.assessmentData
+    : null;
+  const proposalHydrateSource = forceProposalEntry
+    ? entity?.proposalData
+    : null;
+
+  // Hydrate from saved entity data. Assessment/proposal answers are keyed off
+  // those buckets only so creating a preference id (e.g. matching save) does
+  // not wipe in-progress form values.
   useEffect(() => {
     if (allFields.length === 0) return;
     setValues(hydrate(entityForStorage, allFields, related));
     setErrors({});
     setSubmitError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allFields, entityForStorage, related?.organization?.id]);
+  }, [
+    allFields,
+    related?.organization?.id,
+    forceAssessmentEntry,
+    forceProposalEntry,
+    assessmentHydrateSource,
+    proposalHydrateSource,
+    forceAssessmentEntry || forceProposalEntry ? null : entityForStorage,
+  ]);
 
   const handleFieldChange = useCallback((name, value) => {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -434,53 +457,81 @@ const DefinitionForm = forwardRef(function DefinitionForm(
     });
   }, []);
 
-  const save = useCallback(async () => {
+  const lastValidityRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof onValidityChange !== "function") return;
+    let isValid = false;
+    if (definition) {
+      const visibleFields = getVisibleFields(definition, {
+        viewerRoles,
+        entityStatus,
+      });
+      const rawErrors = validateValues(values, visibleFields);
+      isValid = Object.keys(rawErrors).length === 0;
+    }
+    if (lastValidityRef.current === isValid) return;
+    lastValidityRef.current = isValid;
+    onValidityChange(isValid);
+  }, [
+    onValidityChange,
+    definition,
+    values,
+    viewerRoles,
+    entityStatus,
+  ]);
+
+  const save = useCallback(async (options = {}) => {
     if (readOnly || submitting) return false;
     if (!definition) return false;
 
+    const skipValidation = Boolean(options.skipValidation);
     const visibleFields = getVisibleFields(definition, {
       viewerRoles,
       entityStatus,
     });
-    const rawErrors = validateValues(values, visibleFields);
 
-    if (Object.keys(rawErrors).length > 0) {
-      const formattedErrors = {};
-      const failingLabels = [];
+    if (!skipValidation) {
+      const rawErrors = validateValues(values, visibleFields);
 
-      for (const [name, detail] of Object.entries(rawErrors)) {
-        const field = visibleFields.find((f) => f.name === name);
-        formattedErrors[name] = formatFieldError(field, detail, t, locale);
-        if (field) {
-          failingLabels.push(fieldLabel(field, locale));
+      if (Object.keys(rawErrors).length > 0) {
+        const formattedErrors = {};
+        const failingLabels = [];
+
+        for (const [name, detail] of Object.entries(rawErrors)) {
+          const field = visibleFields.find((f) => f.name === name);
+          formattedErrors[name] = formatFieldError(field, detail, t, locale);
+          if (field) {
+            failingLabels.push(fieldLabel(field, locale));
+          }
         }
+
+        setErrors(formattedErrors);
+
+        const allSelectRequired = Object.values(rawErrors).every(
+          (d) => d?.code === "selectRequired",
+        );
+        const banner = allSelectRequired
+          ? buildSelectValidationBanner(failingLabels, t)
+          : failingLabels.length === 1
+            ? t(
+                "definitionForm.fixSingleField",
+                { field: failingLabels[0] },
+                { default: "Please fix {{field}} before saving." }
+              )
+            : t(
+                "definitionForm.fixMultipleFields",
+                { fields: failingLabels.join(", ") },
+                {
+                  default:
+                    "Please fix the following fields: {{fields}}",
+                }
+              );
+
+        setSubmitError(banner);
+        scrollToFirstFieldError();
+        return false;
       }
-
-      setErrors(formattedErrors);
-
-      const allSelectRequired = Object.values(rawErrors).every(
-        (d) => d?.code === "selectRequired",
-      );
-      const banner = allSelectRequired
-        ? buildSelectValidationBanner(failingLabels, t)
-        : failingLabels.length === 1
-          ? t(
-              "definitionForm.fixSingleField",
-              { field: failingLabels[0] },
-              { default: "Please fix {{field}} before saving." }
-            )
-          : t(
-              "definitionForm.fixMultipleFields",
-              { fields: failingLabels.join(", ") },
-              {
-                default:
-                  "Please fix the following fields: {{fields}}",
-              }
-            );
-
-      setSubmitError(banner);
-      scrollToFirstFieldError();
-      return false;
     }
 
     setSubmitError(null);
@@ -551,7 +602,8 @@ const DefinitionForm = forwardRef(function DefinitionForm(
 
     setSubmitting(true);
     try {
-      await onSubmit(updateInput);
+      const result = await onSubmit(updateInput);
+      if (result === false) return false;
       return true;
     } catch (err) {
       const invalidSelectNames = parseInvalidSelectFieldNamesFromError(err);

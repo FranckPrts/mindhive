@@ -5,7 +5,8 @@ import styled from "styled-components";
 
 import Chip from "../../../../DesignSystem/Chip";
 import IconButton from "../../../../DesignSystem/IconButton";
-import { CodeIcon, QuestionMarkIcon } from "../../../../DesignSystem/Icons";
+import { NavbarItem, SectionNavbar } from "../../../../DesignSystem/Navbar";
+import { CloseIcon, CodeIcon, QuestionMarkIcon } from "../../../../DesignSystem/Icons";
 import { EXPLORE_OPPORTUNITY_DETAIL } from "../../../../Queries/Opportunity";
 import { ReadOnlyTipTap } from "../../../../TipTap/ReadOnlyTipTap";
 import ReviewCard from "../../../../Forms/DefinitionForm/ReviewCard";
@@ -107,19 +108,14 @@ const ContentInner = styled.div`
   box-sizing: border-box;
 `;
 
-const ChipSelectorRow = styled.div`
+const PreviewSectionNav = styled(SectionNavbar)`
   position: sticky;
   top: 0;
   z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
   width: 100%;
   min-width: 0;
   padding: 8px 8px 16px 8px;
   box-sizing: border-box;
-  border-bottom: 1px solid var(--MH-Theme-Neutrals-Light, #d3dae0);
   background: var(--MH-Theme-Neutrals-White, #ffffff);
 `;
 
@@ -306,6 +302,8 @@ export default function StudentOpportunityPreview({
   classId = null,
   /** Matching round that surfaces this opportunity to the student class. */
   roundId = null,
+  hasDraftRanking = false,
+  favoriteRefetchQueries = [],
 }) {
   const { t } = useTranslation("classes");
   const { t: tConnect } = useTranslation("connect");
@@ -506,34 +504,13 @@ export default function StudentOpportunityPreview({
     {},
     { default: "Class FAQ" },
   );
-  const backLabel = t("opportunities.studentView.preview.back", {}, {
-    default: "Back to opportunities",
-  });
-  const backAria = t("opportunities.studentView.preview.backAria", {}, {
-    default: "Back to opportunities",
+  const closeLabel = t("opportunities.studentView.preview.close", {}, {
+    default: "Close",
   });
 
   return (
     <PageShell>
       <PreviewChrome>
-        <IconButton
-          variant="tonal"
-          style={{
-            background: "var(--MH-Theme-Neutrals-Lighter, #F3F3F3)",
-          }}
-          ariaLabel={backAria}
-          title={backLabel}
-          onClick={onClose}
-          icon={
-            <img
-              src="/assets/icons/back.svg"
-              alt=""
-              width={12}
-              height={12}
-              style={{ width: 12, height: 12 }}
-            />
-          }
-        />
         <ChromeTitleWrap>
           <ChromeTitle>{pageTitle}</ChromeTitle>
         </ChromeTitleWrap>
@@ -541,6 +518,16 @@ export default function StudentOpportunityPreview({
           <ManageFavoriteOpportunity
             user={user}
             opportunityId={opportunityId}
+            roundId={roundId}
+            hasDraftRanking={hasDraftRanking}
+            refetchQueries={favoriteRefetchQueries}
+          />
+          <IconButton
+            variant="subtle"
+            ariaLabel={closeLabel}
+            title={closeLabel}
+            onClick={onClose}
+            icon={<CloseIcon />}
           />
         </HeaderActions>
       </PreviewChrome>
@@ -581,26 +568,25 @@ export default function StudentOpportunityPreview({
               />
             ) : null}
 
-            <ChipSelectorRow
-              role="group"
+            <PreviewSectionNav
+              variant="underline"
+              showRule
               aria-label={t(
                 "opportunities.studentView.preview.tabsAria",
                 {},
                 { default: "Opportunity sections" },
               )}
             >
-              <Chip
-                label={aboutTabLabel}
+              <NavbarItem
                 selected={activeTab === TABS.about}
-                pressed={activeTab === TABS.about}
                 onClick={() => setActiveTab(TABS.about)}
-                ariaLabel={aboutTabLabel}
-              />
-              <Chip
-                label={peopleTabLabel}
+              >
+                {aboutTabLabel}
+              </NavbarItem>
+              <NavbarItem
                 selected={activeTab === TABS.people}
-                pressed={activeTab === TABS.people}
-                leading={
+                onClick={() => setActiveTab(TABS.people)}
+                leadingIcon={
                   <img
                     src="/assets/connect/group.svg"
                     alt=""
@@ -609,18 +595,17 @@ export default function StudentOpportunityPreview({
                     height={16}
                   />
                 }
-                onClick={() => setActiveTab(TABS.people)}
-                ariaLabel={peopleTabLabel}
-              />
-              <Chip
-                label={forumTabLabel}
+              >
+                {peopleTabLabel}
+              </NavbarItem>
+              <NavbarItem
                 selected={activeTab === TABS.forum}
-                pressed={activeTab === TABS.forum}
-                leading={<QuestionMarkIcon width={18} height={18} />}
                 onClick={() => setActiveTab(TABS.forum)}
-                ariaLabel={forumTabLabel}
-              />
-            </ChipSelectorRow>
+                leadingIcon={<QuestionMarkIcon width={18} height={18} />}
+              >
+                {forumTabLabel}
+              </NavbarItem>
+            </PreviewSectionNav>
 
             {activeTab === TABS.about ? (
               <div style={{ display: "grid", gap: 24 }}>
@@ -633,6 +618,8 @@ export default function StudentOpportunityPreview({
                   )}
                 >
                   <Chip
+                    variant="static"
+                    tone="neutral"
                     label={teamSizeLabel}
                     leading={
                       <img
@@ -649,19 +636,21 @@ export default function StudentOpportunityPreview({
                     }
                   />
                   {opp.timeCommitment ? (
-                    <Chip label={opp.timeCommitment} />
+                    <Chip variant="static" tone="neutral" label={opp.timeCommitment} />
                   ) : null}
                   {datesLabel ? (
-                    <Chip label={datesLabel} />
+                    <Chip variant="static" tone="neutral" label={datesLabel} />
                   ) : null}
                   {categoryDisplay ? (
-                    <Chip label={categoryDisplay} />
+                    <Chip variant="static" tone="neutral" label={categoryDisplay} />
                   ) : null}
                   {ratingLabel ? (
-                    <Chip label={ratingLabel} />
+                    <Chip variant="static" tone="neutral" label={ratingLabel} />
                   ) : null}
                   {specialResourcesLabel ? (
                     <Chip
+                      variant="static"
+                      tone="neutral"
                       label={t(
                         "opportunities.studentView.preview.specialResourcesChip",
                         { value: specialResourcesLabel },
@@ -671,6 +660,8 @@ export default function StudentOpportunityPreview({
                   ) : null}
                   {fieldResearchLabel ? (
                     <Chip
+                      variant="static"
+                      tone="neutral"
                       label={t(
                         "opportunities.studentView.preview.fieldResearchChip",
                         { value: fieldResearchLabel },

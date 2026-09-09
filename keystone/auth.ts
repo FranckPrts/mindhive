@@ -24,6 +24,17 @@ import { permissionsList } from "./schemas/fields";
 // see https://keystonejs.com/docs/apis/session for the session docs
 import { statelessSessions } from "@keystone-6/core/session";
 
+/** Enabled by default for backward compatibility when the setting is absent. */
+function classNotifiesTeachersOfStudentPasswordReset(
+  settings: unknown
+): boolean {
+  if (!settings || typeof settings !== "object") return true;
+  return (
+    (settings as Record<string, unknown>).notifyTeachersOfStudentPasswordReset !==
+    false
+  );
+}
+
 // Helper function to find teacher emails for a student
 async function findTeacherEmailsForStudent(
   studentEmail: string,
@@ -49,6 +60,7 @@ async function findTeacherEmailsForStudent(
         }
         studentIn {
           id
+          settings
           creator {
             id
             email
@@ -83,9 +95,16 @@ async function findTeacherEmailsForStudent(
 
     console.log(`[Password Reset] Student is enrolled in ${profile.studentIn.length} class(es).`);
 
-    // Collect all unique teacher emails from the student's classes
+    // Collect unique teacher emails only from classes that still notify teachers
     const teacherEmails = new Set<string>();
     for (const classItem of profile.studentIn) {
+      if (!classNotifiesTeachersOfStudentPasswordReset(classItem.settings)) {
+        console.log(
+          `[Password Reset] Class ${classItem.id} has teacher password-reset emails disabled. Skipping.`
+        );
+        continue;
+      }
+
       if (classItem.creator?.email) {
         teacherEmails.add(classItem.creator.email);
         console.log(`[Password Reset] Found a teacher for class ${classItem.id}.`);

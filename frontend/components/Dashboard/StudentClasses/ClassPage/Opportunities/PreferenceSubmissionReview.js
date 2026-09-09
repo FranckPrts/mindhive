@@ -1,8 +1,8 @@
 import useTranslation from "next-translate/useTranslation";
 import styled from "styled-components";
 
-import { StarFilledIcon, StarIcon } from "../../../../DesignSystem/Icons";
 import { studentDisplayName } from "./ClassmateRankList";
+import { buildFavoritedTeamProjectsNote } from "./classmatePickLimitCopy";
 
 const Section = styled.section`
   display: flex;
@@ -40,7 +40,21 @@ const ReviewItem = styled.li`
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--MH-Theme-Neutrals-Medium, #e6e6e6);
-  background: var(--MH-Theme-Neutrals-Lighter, #f9f9f9);
+  background: var(--MH-Theme-Neutrals-White, #ffffff);
+
+  ${({ $active }) =>
+    $active
+      ? `
+    box-shadow: var(--MH-Theme-Elevation-Medium, 2px 2px 8px rgba(0, 0, 0, 0.1));
+  `
+      : ""}
+`;
+
+const ZoneLabel = styled.p`
+  margin: 0 0 4px;
+  font: var(--MH-Type-Body-Base, 400 14px/20px "Inter", sans-serif);
+  letter-spacing: 0;
+  color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
 `;
 
 const ReviewRow = styled.div`
@@ -59,9 +73,17 @@ const RankBadge = styled.span`
   padding: 0 8px;
   border-radius: 999px;
   font: var(--MH-Type-Label-Base, 500 14px/20px "Inter", sans-serif);
-  background: var(--MH-Theme-Neutrals-White, #ffffff);
+  background: var(--MH-Theme-Neutrals-Lighter, #f3f3f3);
   color: var(--MH-Theme-Neutrals-Black, #171717);
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #e6e6e6);
+  border: none;
+
+  ${({ $active }) =>
+    $active
+      ? `
+    background: var(--MH-Theme-Primary-Light, #def8fb);
+    color: var(--MH-Theme-Primary-Dark, #336f8a);
+  `
+      : ""}
 `;
 
 const ItemTitle = styled.span`
@@ -74,13 +96,6 @@ const Meta = styled.span`
   font: var(--MH-Type-Body-Base, 400 14px/20px "Inter", sans-serif);
   letter-spacing: 0;
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
-`;
-
-const StarRow = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  color: #f5b800;
 `;
 
 const NotesField = styled.label`
@@ -143,6 +158,8 @@ function buildOpportunityReviewList(opportunities, rankings) {
 export default function PreferenceSubmissionReview({
   students,
   classmateOrder,
+  effectivePicks = 0,
+  teamEligibleOpportunities = [],
   opportunities,
   rankings,
   notes,
@@ -151,6 +168,11 @@ export default function PreferenceSubmissionReview({
 }) {
   const { t } = useTranslation("classes");
 
+  const favoritedTeamProjectsNote = buildFavoritedTeamProjectsNote(
+    teamEligibleOpportunities,
+    t,
+  );
+
   const studentById = new Map(
     (students || []).filter((s) => s?.id).map((s) => [s.id, s]),
   );
@@ -158,6 +180,11 @@ export default function PreferenceSubmissionReview({
   const rankedOpportunities = buildOpportunityReviewList(
     opportunities,
     rankings,
+  );
+
+  const activeCount = Math.min(
+    effectivePicks > 0 ? effectivePicks : 0,
+    classmateOrder.length,
   );
 
   return (
@@ -175,21 +202,65 @@ export default function PreferenceSubmissionReview({
             })}
           </EmptyNote>
         ) : (
-          <ReviewList>
-            {classmateOrder.map((id, index) => {
-              const student = studentById.get(id);
-              return (
-                <ReviewItem key={id}>
-                  <ReviewRow>
-                    <RankBadge>{index + 1}</RankBadge>
-                    <ItemTitle>
-                      {studentDisplayName(student) || id}
-                    </ItemTitle>
-                  </ReviewRow>
-                </ReviewItem>
-              );
-            })}
-          </ReviewList>
+          <>
+            {favoritedTeamProjectsNote ? (
+              <ZoneLabel>{favoritedTeamProjectsNote}</ZoneLabel>
+            ) : null}
+            {activeCount > 0 ? (
+              <>
+                <ZoneLabel>
+                  {t(
+                    "opportunities.studentView.rankForm.classmatesTopPicks",
+                    { count: effectivePicks },
+                    {
+                      default:
+                        "Your top {{count}} picks",
+                    },
+                  )}
+                </ZoneLabel>
+                <ReviewList>
+                  {classmateOrder.slice(0, activeCount).map((id, index) => {
+                    const student = studentById.get(id);
+                    return (
+                      <ReviewItem key={id} $active>
+                        <ReviewRow>
+                          <RankBadge $active>{index + 1}</RankBadge>
+                          <ItemTitle>
+                            {studentDisplayName(student) || id}
+                          </ItemTitle>
+                        </ReviewRow>
+                      </ReviewItem>
+                    );
+                  })}
+                </ReviewList>
+              </>
+            ) : null}
+            {classmateOrder.length > activeCount ? (
+              <>
+                <ZoneLabel>
+                  {t("opportunities.studentView.rankForm.classmatesBackups", {}, {
+                    default: "Backups",
+                  })}
+                </ZoneLabel>
+                <ReviewList>
+                  {classmateOrder.slice(activeCount).map((id, index) => {
+                    const student = studentById.get(id);
+                    const rank = activeCount + index + 1;
+                    return (
+                      <ReviewItem key={id}>
+                        <ReviewRow>
+                          <RankBadge>{rank}</RankBadge>
+                          <ItemTitle>
+                            {studentDisplayName(student) || id}
+                          </ItemTitle>
+                        </ReviewRow>
+                      </ReviewItem>
+                    );
+                  })}
+                </ReviewList>
+              </>
+            ) : null}
+          </>
         )}
       </Section>
 
@@ -209,37 +280,12 @@ export default function PreferenceSubmissionReview({
           <ReviewList>
             {rankedOpportunities.map((opp) => {
               const r = rankings[opp.id] || {};
-              const stars =
-                r.starRating === "" || r.starRating == null
-                  ? 0
-                  : Number(r.starRating);
               const comment = truncate(r.comment);
               return (
                 <ReviewItem key={opp.id}>
                   <ReviewRow>
                     <RankBadge>{r.rank}</RankBadge>
                     <ItemTitle>{opp.title}</ItemTitle>
-                    {stars > 0 ? (
-                      <StarRow aria-label={`${stars} stars`}>
-                        {[1, 2, 3, 4, 5].map((n) =>
-                          n <= stars ? (
-                            <StarFilledIcon
-                              key={n}
-                              width={18}
-                              height={18}
-                              aria-hidden
-                            />
-                          ) : (
-                            <StarIcon
-                              key={n}
-                              width={18}
-                              height={18}
-                              aria-hidden
-                            />
-                          ),
-                        )}
-                      </StarRow>
-                    ) : null}
                   </ReviewRow>
                   {comment ? <Meta>{comment}</Meta> : null}
                 </ReviewItem>

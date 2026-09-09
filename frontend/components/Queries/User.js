@@ -128,6 +128,9 @@ export const CURRENT_USER_QUERY = gql`
         favoriteOpportunities {
           id
         }
+        favoriteClasses {
+          id
+        }
         bio
         location
         language
@@ -196,6 +199,13 @@ export const GET_USER_CLASSES = gql`
               title
               code
             }
+          }
+          templateProposal {
+            id
+          }
+          classTemplateBoards {
+            id
+            title
           }
         }
       }

@@ -5,6 +5,10 @@ import moment from "moment";
 import useTranslation from "next-translate/useTranslation";
 
 import { GET_CLASSES } from "../../Queries/Classes";
+import ClassFavoriteButton, {
+  compareClassesByFavoriteThenDate,
+  getFavoriteClassIds,
+} from "../ClassFavoriteButton";
 
 export default function ClassesList({
   query,
@@ -33,6 +37,7 @@ export default function ClassesList({
   });
 
   const classes = data?.classes || [];
+  const favoriteIds = useMemo(() => getFavoriteClassIds(user), [user]);
 
   const filteredSortedClasses = useMemo(() => {
     const q = (searchQuery ?? "").trim().toLowerCase();
@@ -40,13 +45,11 @@ export default function ClassesList({
       const title = (c?.title ?? "").toLowerCase();
       return !q || title.includes(q);
     });
-    list.sort((a, b) => {
-      const ta = new Date(a?.createdAt).getTime();
-      const tb = new Date(b?.createdAt).getTime();
-      return dateSortOrder === "newest" ? tb - ta : ta - tb;
-    });
+    list.sort((a, b) =>
+      compareClassesByFavoriteThenDate(a, b, favoriteIds, dateSortOrder)
+    );
     return list;
-  }, [classes, searchQuery, dateSortOrder]);
+  }, [classes, searchQuery, dateSortOrder, favoriteIds]);
 
   if (error) {
     return (
@@ -92,6 +95,7 @@ export default function ClassesList({
         <div>{t("classesList.teacher")}</div>
         <div>{t("classesList.numberOfStudents")}</div>
         <div>{t("classesList.dateCreated")}</div>
+        <div aria-hidden="true" />
       </div>
 
       <div className="classListBoard">
@@ -120,6 +124,7 @@ export default function ClassesList({
                 <div className="classListRowMeta">
                   {moment(myclass?.createdAt).format("MMMM D, YYYY")}
                 </div>
+                <ClassFavoriteButton user={user} classId={myclass.id} />
               </div>
             </Link>
           );
