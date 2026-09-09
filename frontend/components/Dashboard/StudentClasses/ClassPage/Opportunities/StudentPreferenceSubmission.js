@@ -1072,7 +1072,8 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
     );
   }
 
-  const { beforeOpen, afterClose } = getPreferenceTimeWindowState(round);
+  const now = Date.now();
+  const { beforeOpen, afterClose } = getPreferenceTimeWindowState(round, now);
   const submitted = submittedEarly;
   const isOpen = isRankingEditable;
   const showDriftRepairModal =
