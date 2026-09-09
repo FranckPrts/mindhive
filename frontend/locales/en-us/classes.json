@@ -1905,6 +1905,12 @@
 		"untitled": "Untitled"
 	},
 	"participants": "Participants",
+	"passwordResetEmailSettingsDescription": "When enabled, this class’s teacher receives student password-reset emails (student CC’d). Turn off to stop notifying this class’s teacher; the student only gets the link directly when every class they belong to has this setting off.",
+	"passwordResetEmailSettingsDisabledLabel": "Teacher is not notified of student password resets",
+	"passwordResetEmailSettingsEnabledLabel": "Notify teacher of student password resets",
+	"passwordResetEmailSettingsHint": "When toggled off, this class’s teacher will not receive the reset link. Only when all of a student’s classes turn this off does the student receive the link alone. It is not recommended to deactivate this option when your students are under an account restriction that may prevent them from resetting their password in full autonomy.",
+	"passwordResetEmailSettingsTitle": "Student password reset emails",
+	"passwordResetEmailUpdateError": "Failed to update password reset email setting",
 	"pleaseTypeDelete": "Please type DELETE to delete your class",
 	"projectBoard": {
 		"actions": "Actions",

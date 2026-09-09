@@ -19,6 +19,7 @@ import { useRouter } from "next/router";
 
 import Chip from "../../../DesignSystem/Chip";
 import DesignSystemButton from "../../../DesignSystem/Button";
+import ToggleSwitch from "../../../DesignSystem/ToggleSwitch";
 import TipTapEditor from "../../../TipTap/Main";
 import CurriculumTypeSelector from "./CurriculumTypeSelector";
 import {
@@ -26,6 +27,11 @@ import {
   getClassCurriculumTypes,
 } from "../../../../lib/curriculumTypes";
 import { deriveRoles } from "../../Connect/useConnectRole";
+
+function getNotifyTeachersOfStudentPasswordReset(settings) {
+  if (!settings || typeof settings !== "object") return true;
+  return settings.notifyTeachersOfStudentPasswordReset !== false;
+}
 
 function stripHtml(html) {
   if (!html) return "";
@@ -57,11 +63,19 @@ export default function Settings({ myclass, user }) {
   const [curriculumTypes, setCurriculumTypes] = useState(() =>
     getClassCurriculumTypes(myclass?.settings)
   );
+  const [notifyTeachersOfStudentPasswordReset, setNotifyTeachersOfStudentPasswordReset] =
+    useState(() => getNotifyTeachersOfStudentPasswordReset(myclass?.settings));
 
   // Sync from server when myclass (e.g. after refetch) changes
   useEffect(() => {
     setCurriculumTypes(getClassCurriculumTypes(myclass?.settings));
   }, [myclass?.settings?.curriculumType, myclass?.settings?.curriculumTypes]);
+
+  useEffect(() => {
+    setNotifyTeachersOfStudentPasswordReset(
+      getNotifyTeachersOfStudentPasswordReset(myclass?.settings)
+    );
+  }, [myclass?.settings?.notifyTeachersOfStudentPasswordReset]);
 
   useEffect(() => {
     setClassDescription(myclass?.description || "");
@@ -156,6 +170,31 @@ export default function Settings({ myclass, user }) {
           })
       )
     );
+  };
+
+  const updateNotifyTeachersOfStudentPasswordReset = (enabled) => {
+    const previousValue = notifyTeachersOfStudentPasswordReset;
+    setNotifyTeachersOfStudentPasswordReset(enabled);
+    const existingSettings =
+      myclass?.settings && typeof myclass.settings === "object"
+        ? myclass.settings
+        : {};
+    updateClassSettings({
+      variables: {
+        settings: {
+          ...existingSettings,
+          notifyTeachersOfStudentPasswordReset: enabled,
+        },
+      },
+    }).catch((err) => {
+      setNotifyTeachersOfStudentPasswordReset(previousValue);
+      alert(
+        err?.message ||
+          t("passwordResetEmailUpdateError", {}, {
+            default: "Failed to update password reset email setting",
+          })
+      );
+    });
   };
 
   const updateClassDescription = () => {
@@ -760,6 +799,57 @@ export default function Settings({ myclass, user }) {
               questionKey="classCurriculumTypeQuestion"
               questionDefault="Which curriculum types apply to this class?"
             />
+          </div>
+        </div>
+      </section>
+
+      <section className="settingsSection">
+        <div className="settingsSectionHeader">
+          <h3>
+            {t("passwordResetEmailSettingsTitle", {}, {
+              default: "Student password reset emails",
+            })}
+          </h3>
+          <p>
+            {t("passwordResetEmailSettingsDescription", {}, {
+              default:
+                "When enabled, this class’s teacher receives student password-reset emails (student CC’d). Turn off to stop notifying this class’s teacher; the student only gets the link directly when every class they belong to has this setting off.",
+            })}
+          </p>
+        </div>
+        <div className="informationBlock">
+          <div className="block curriculumTypeBlock">
+            <ToggleSwitch
+              checked={notifyTeachersOfStudentPasswordReset}
+              disabled={updatingSettings}
+              onChange={updateNotifyTeachersOfStudentPasswordReset}
+              label={
+                notifyTeachersOfStudentPasswordReset
+                  ? t("passwordResetEmailSettingsEnabledLabel", {}, {
+                      default: "Notify teacher of student password resets",
+                    })
+                  : t("passwordResetEmailSettingsDisabledLabel", {}, {
+                      default:
+                        "Teacher is not notified of student password resets",
+                    })
+              }
+              aria-label={
+                notifyTeachersOfStudentPasswordReset
+                  ? t("passwordResetEmailSettingsEnabledLabel", {}, {
+                      default: "Notify teacher of student password resets",
+                    })
+                  : t("passwordResetEmailSettingsDisabledLabel", {}, {
+                      default:
+                        "Teacher is not notified of student password resets",
+                    })
+              }
+            />
+            <p className="classDescriptionSettingsHint">
+              {t("passwordResetEmailSettingsHint", {}, {
+                default:
+                  "When toggled off, this class’s teacher will not receive the reset link. Only when all of a student’s classes turn this off does the student receive the link alone. It is not recommended to deactivate this option when your students are under an account restriction that may prevent them from resetting their password in full autonomy.",
+              })}
+            </p>
           </div>
         </div>
       </section>
