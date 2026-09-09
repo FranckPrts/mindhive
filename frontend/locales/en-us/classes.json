@@ -1339,6 +1339,7 @@
 				"availableWithCount": "Available ({{count}})",
 				"followUp": "Follow-up",
 				"manageMatches": "Manage matches",
+				"matching": "Matching",
 				"preSelected": "Pre-selected",
 				"preSelectedWithCount": "Pre-selected ({{count}})",
 				"questions": "Student questions",
@@ -1349,16 +1350,22 @@
 				"settings": "Settings",
 				"sponsorForms": "Sponsor forms",
 				"studentInterest": "Interest",
-				"studentRanking": "Student Ranking"
+				"studentRanking": "Student ranking"
+			},
+			"matching": {
+				"disabledNewHint": "Save the matching round first to open matching."
 			},
 			"studentRanking": {
 				"title": "Student ballots",
 				"downloadCsv": "Download Ballots CSV",
-				"summary": "{{submitted}} submitted · {{matched}} matched · {{projectFirst}} project-first · {{teamFirst}} team-first",
+				"summary": "{{submitted}} submitted · {{matched}} matched · {{drafts}} drafts · {{projectFirst}} project-first · {{teamFirst}} team-first",
 				"loading": "Loading student ballots…",
 				"modeBallot": "Ballots",
 				"modeInterest": "Interest",
 				"searchPlaceholder": "Search students…",
+				"viewFullBallot": "View full ballot",
+				"hideFullBallot": "Hide full ballot",
+				"ballotListEmpty": "No students match this search.",
 				"queueProjectFirst": "Project-first queue",
 				"queueProjectFirstHint": "Students who chose Project first. Process these first.",
 				"queueTeamFirst": "Team-first queue",
@@ -1404,6 +1411,7 @@
 				"reopenBallotWorking": "Reopening…",
 				"reopenBallotSuccess": "Ballot reopened. The student can edit their preferences again.",
 				"reopenBallotFailed": "Could not reopen this ballot. Please try again.",
+				"reopenBallotDismiss": "Dismiss",
 				"reopenBallotDisabledMatched": "Cannot reopen a ballot after the student has been matched.",
 				"status": {
 					"not_started": "Not started",

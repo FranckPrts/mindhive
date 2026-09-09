@@ -200,10 +200,14 @@ const GridShell = styled.div`
   gap: 12px;
   width: 100%;
   min-width: 0;
-  padding: 16px;
-  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
-  border-radius: 12px;
-  background: var(--MH-Theme-Neutrals-White, #ffffff);
+  padding: ${({ $embedded }) => ($embedded ? "0" : "16px")};
+  border: ${({ $embedded }) =>
+    $embedded ? "none" : "1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6)"};
+  border-radius: ${({ $embedded }) => ($embedded ? "0" : "12px")};
+  background: ${({ $embedded }) =>
+    $embedded
+      ? "transparent"
+      : "var(--MH-Theme-Neutrals-White, #ffffff)"};
 
   .matchingRoundStudentInterestEmpty {
     display: grid;
@@ -510,6 +514,7 @@ const MatchingRoundStudentInterestGrid = forwardRef(function MatchingRoundStuden
     students = [],
     opportunities = [],
     enabled = false,
+    embedded = false,
   },
   ref,
 ) {
@@ -872,16 +877,18 @@ const MatchingRoundStudentInterestGrid = forwardRef(function MatchingRoundStuden
 
   if (!students?.length) {
     return (
-      <GridShell>
+      <GridShell $embedded={embedded}>
         <div className="matchingRoundStudentInterestHeader">
           <div className="matchingRoundStudentInterestHeaderText">
-            <h4 className="matchingRoundStudentInterestTitle">
-              {t(
-                "opportunities.matchingRound.studentInterest.title",
-                {},
-                { default: "Interest" },
-              )}
-            </h4>
+            {!embedded ? (
+              <h4 className="matchingRoundStudentInterestTitle">
+                {t(
+                  "opportunities.matchingRound.studentInterest.title",
+                  {},
+                  { default: "Interest" },
+                )}
+              </h4>
+            ) : null}
           </div>
           {headerActions}
         </div>
@@ -900,16 +907,18 @@ const MatchingRoundStudentInterestGrid = forwardRef(function MatchingRoundStuden
 
   if (!opportunities?.length) {
     return (
-      <GridShell>
+      <GridShell $embedded={embedded}>
         <div className="matchingRoundStudentInterestHeader">
           <div className="matchingRoundStudentInterestHeaderText">
-            <h4 className="matchingRoundStudentInterestTitle">
-              {t(
-                "opportunities.matchingRound.studentInterest.title",
-                {},
-                { default: "Interest" },
-              )}
-            </h4>
+            {!embedded ? (
+              <h4 className="matchingRoundStudentInterestTitle">
+                {t(
+                  "opportunities.matchingRound.studentInterest.title",
+                  {},
+                  { default: "Interest" },
+                )}
+              </h4>
+            ) : null}
           </div>
           {headerActions}
         </div>
@@ -932,6 +941,7 @@ const MatchingRoundStudentInterestGrid = forwardRef(function MatchingRoundStuden
 
   return (
     <GridShell
+      $embedded={embedded}
       style={{
         "--student-interest-rows": Math.min(tableRowData.length || 4, 12),
       }}

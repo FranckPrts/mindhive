@@ -547,8 +547,9 @@ function MatchingRoundEditor({
     if (typeof raw !== "string" || !Object.values(PANELS).includes(raw)) {
       return null;
     }
-    // Matches tab is present but disabled for now — ignore deep links.
-    if (raw === PANELS.matches) return null;
+    if (raw === PANELS.matches && isNew) {
+      return null;
+    }
     // Student Interest is disabled for draft / unsaved rounds.
     if (
       raw === PANELS.studentInterest &&
@@ -562,6 +563,9 @@ function MatchingRoundEditor({
   const resolveAllowedPanel = useCallback(
     (panel) => {
       if (!panel || panel === PANELS.settings) return null;
+      if (panel === PANELS.matches && isNew) {
+        return null;
+      }
       if (
         panel === PANELS.studentInterest &&
         (isNew || roundSummary?.status === "draft")
@@ -572,7 +576,8 @@ function MatchingRoundEditor({
         panel !== PANELS.review &&
         panel !== PANELS.selected &&
         panel !== PANELS.forms &&
-        panel !== PANELS.studentInterest
+        panel !== PANELS.studentInterest &&
+        panel !== PANELS.matches
       ) {
         return null;
       }
@@ -653,6 +658,7 @@ function MatchingRoundEditor({
     roundSummary?.status ||
     null;
   const isStudentInterestDisabled = isNew;
+  const isMatchesDisabled = isNew;
 
   const workspaceRoundKey = isCreate
     ? MATCHING_ROUND_CREATE_QUERY
@@ -744,6 +750,12 @@ function MatchingRoundEditor({
       setActivePanel(PANELS.review);
     }
   }, [activePanel, isStudentInterestDisabled]);
+
+  useEffect(() => {
+    if (activePanel === PANELS.matches && isMatchesDisabled) {
+      setActivePanel(PANELS.review);
+    }
+  }, [activePanel, isMatchesDisabled]);
 
   const captureSnapshot = useCallback(
     (
@@ -1293,7 +1305,7 @@ function MatchingRoundEditor({
         label: t(
           "opportunities.matchingRound.panels.studentRanking",
           {},
-          { default: "Student Ranking" },
+          { default: "Student ranking" },
         ),
         disabled: isStudentInterestDisabled,
         tooltipContent: isStudentInterestDisabled
@@ -1307,21 +1319,37 @@ function MatchingRoundEditor({
             )
           : null,
       },
+      {
+        id: PANELS.matches,
+        label: t("opportunities.matchingRound.panels.matching", {}, {
+          default: "Matching",
+        }),
+        disabled: isMatchesDisabled,
+        tooltipContent: isMatchesDisabled
+          ? t(
+              "opportunities.matchingRound.matching.disabledNewHint",
+              {},
+              {
+                default:
+                  "Save the matching round first to open matching.",
+              },
+            )
+          : null,
+      },
       // {
       //   id: PANELS.questions,
       //   label: t("opportunities.matchingRound.panels.questions", {}, {
       //     default: "Student questions",
       //   }),
       // },
-        // {
-        //   id: PANELS.matches,
-        //   label: t("opportunities.matchingRound.panels.manageMatches", {}, {
-        //     default: "Manage matches",
-        //   }),
-        //   disabled: true,
-        // },
     ],
-    [isStudentInterestDisabled, reviewOpportunitiesCount, selectedOpportunities.length, t],
+    [
+      isMatchesDisabled,
+      isStudentInterestDisabled,
+      reviewOpportunitiesCount,
+      selectedOpportunities.length,
+      t,
+    ],
   );
 
   const [createConnectRound, { loading: creating }] = useMutation(
@@ -3254,6 +3282,7 @@ function MatchingRoundEditor({
               activePanel === PANELS.studentInterest &&
               !isStudentInterestDisabled
             }
+            embedded
           />
         )}
       />
@@ -3261,6 +3290,12 @@ function MatchingRoundEditor({
     </div>
     );
   };
+
+  const renderMatchesPanel = () => (
+    <div className="classTabMatchingRoundPanel">
+      {/* Matching workflows land here in a later phase. */}
+    </div>
+  );
 
   return (
     <div className="matchingRoundWorkspace">
@@ -3456,6 +3491,7 @@ function MatchingRoundEditor({
             {activePanel === PANELS.questions && renderQuestionsPanel()}
             {activePanel === PANELS.studentInterest &&
               renderStudentRankingPanel()}
+            {activePanel === PANELS.matches && renderMatchesPanel()}
 
             {isDirty || isNew ? (
               <div className="classTabMatchingRoundFooter">
