@@ -153,7 +153,8 @@ const StyledClass = styled.div`
       minmax(8rem, 2fr)
       minmax(6rem, 1.25fr)
       minmax(4.5rem, 0.75fr)
-      minmax(7rem, 1fr);
+      minmax(7rem, 1fr)
+      40px;
     column-gap: 16px;
     align-items: center;
   }
@@ -168,8 +169,8 @@ const StyledClass = styled.div`
 
   .classListBoard {
     display: grid;
-    gap: 4px;
-    margin-top: 4px;
+    gap: 12px;
+    margin-top: 8px;
   }
 
   .classListContainer {
@@ -177,7 +178,7 @@ const StyledClass = styled.div`
     background-color: var(--MH-Theme-Neutrals-White, #ffffff);
     border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
     border-radius: 12px;
-    padding: 4px 8px 12px;
+    padding: 8px 8px 16px;
   }
 
   .classListBoard a {
@@ -193,12 +194,13 @@ const StyledClass = styled.div`
   }
 
   .classListRow {
-    padding: 14px 16px;
+    padding: 18px 16px;
     cursor: pointer;
     background: transparent;
     border-radius: 8px;
     border: none;
     font: var(--MH-Type-Body-Base);
+    font-weight: 400;
     letter-spacing: 0;
     color: var(--MH-Theme-Neutrals-Black, #171717);
     transition:
@@ -206,7 +208,7 @@ const StyledClass = styled.div`
       color 180ms ease-out;
 
     &:hover {
-      background-color: var(--MH-Theme-tertiary-medium, #D3E0E3);
+      background-color: var(--MH-Theme-Primary-Light, #def8fb);
     }
   }
 
@@ -217,9 +219,16 @@ const StyledClass = styled.div`
     white-space: nowrap;
   }
 
+  .classListRowFavorite {
+    overflow: visible;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .classListRowTitle,
   .classListRow > div:first-child {
-    font-weight: 600;
+    font-weight: 400;
   }
 
   .classListRowMeta {
@@ -264,11 +273,13 @@ const StyledClass = styled.div`
   @media (max-width: 720px) {
     .classListHeader,
     .classListRow {
-      grid-template-columns: minmax(0, 1.4fr) minmax(8rem, 1fr);
+      grid-template-columns: minmax(0, 1.4fr) minmax(8rem, 1fr) 40px;
     }
 
-    .classListHeader > :nth-child(n + 3),
-    .classListRow > :nth-child(n + 3) {
+    .classListHeader > :nth-child(3),
+    .classListHeader > :nth-child(4),
+    .classListRow > :nth-child(3),
+    .classListRow > :nth-child(4) {
       display: none;
     }
   }
