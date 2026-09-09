@@ -13,7 +13,7 @@ import Chip from "../../../../DesignSystem/Chip";
 import Button from "../../../../DesignSystem/Button";
 import DefinitionForm from "../../../../Forms/DefinitionForm";
 import { StarFilledIcon, StarIcon, UnlockIcon } from "../../../../DesignSystem/Icons";
-import Navbar, { NavbarItem } from "../../../../DesignSystem/Navbar";
+import ButtonGroup from "../../../../DesignSystem/ButtonGroup";
 import { TEACHER_STUDENT_BALLOT_VIEW } from "../../../../Queries/ConnectMatch";
 import { UPDATE_PREFERENCE } from "../../../../Mutations/ConnectPreference";
 import { isAssessmentFormAnswerComplete } from "../../../../../lib/connectPreferenceAssessmentData";
@@ -1065,27 +1065,43 @@ const MatchingRoundStudentBallotPanel = forwardRef(
     [canDownloadBallotCsv, handleDownloadBallotCsv],
   );
 
-  const subModeNav =
-    onSubModeChange ? (
-      <Navbar style={{ paddingLeft: 0, paddingRight: 0 }}>
-        <NavbarItem
-          selected={subMode === STUDENT_RANKING_SUB_MODES.ballot}
-          onClick={() => onSubModeChange(STUDENT_RANKING_SUB_MODES.ballot)}
-        >
-          {t("opportunities.matchingRound.studentRanking.modeBallot", {}, {
-            default: "Ballots",
-          })}
-        </NavbarItem>
-        <NavbarItem
-          selected={subMode === STUDENT_RANKING_SUB_MODES.interest}
-          onClick={() => onSubModeChange(STUDENT_RANKING_SUB_MODES.interest)}
-        >
-          {t("opportunities.matchingRound.studentRanking.modeInterest", {}, {
-            default: "Interest",
-          })}
-        </NavbarItem>
-      </Navbar>
-    ) : null;
+  const subModeNav = onSubModeChange ? (
+    <ButtonGroup
+      type="Round"
+      size="Medium"
+      selectionMode="single"
+      selectionRequired
+      value={subMode}
+      onChange={(value) => {
+        if (typeof value === "string") {
+          onSubModeChange(value);
+        }
+      }}
+      items={[
+        {
+          value: STUDENT_RANKING_SUB_MODES.ballot,
+          label: t(
+            "opportunities.matchingRound.studentRanking.modeBallot",
+            {},
+            { default: "Ballots" },
+          ),
+        },
+        {
+          value: STUDENT_RANKING_SUB_MODES.interest,
+          label: t(
+            "opportunities.matchingRound.studentRanking.modeInterest",
+            {},
+            { default: "Interest" },
+          ),
+        },
+      ]}
+      aria-label={t(
+        "opportunities.matchingRound.studentRanking.modeAria",
+        {},
+        { default: "Student ranking view" },
+      )}
+    />
+  ) : null;
 
   if (subMode === STUDENT_RANKING_SUB_MODES.interest) {
     return (

@@ -75,6 +75,12 @@ export function getMaxActiveClassmatePicks(opportunities) {
   return Math.max(...eligible.map((o) => (o.teamSize || 1) - 1), 0);
 }
 
+export function getLargestTeamSize(opportunities) {
+  const eligible = getTeamEligibleOpportunities(opportunities);
+  if (!eligible.length) return 0;
+  return Math.max(...eligible.map((o) => o.teamSize || 1), 0);
+}
+
 export function sliceActiveClassmates(classmateIds, activeCount) {
   if (!activeCount || activeCount <= 0) return [];
   return (classmateIds || []).slice(0, activeCount);
@@ -193,6 +199,66 @@ export function getClassmateMutualStatus(
   if (iPickThem && !theyPickMe) return "one_way";
   if (!iPickThem && theyPickMe) return "received";
   return null;
+}
+
+/**
+ * Clique check among a connected team-first group.
+ * missingDirected: students in the group who did not put the other in their
+ * active (top teamSize−1) classmate picks.
+ */
+export function describeTeamGroupClosure({
+  memberIds = [],
+  studentById,
+  classmateListsByStudent,
+  activePickCount = 0,
+}) {
+  const lists = classmateListsByStudent || new Map();
+  const ids = (memberIds || []).filter(Boolean);
+  const missingDirected = [];
+
+  for (let i = 0; i < ids.length; i += 1) {
+    for (let j = i + 1; j < ids.length; j += 1) {
+      const a = ids[i];
+      const b = ids[j];
+      const status = getClassmateMutualStatus(
+        a,
+        b,
+        lists,
+        activePickCount,
+      );
+      if (status === "mutual") continue;
+
+      const aPicksB = sliceActiveClassmates(
+        lists.get(a) || [],
+        activePickCount,
+      ).includes(b);
+      const bPicksA = sliceActiveClassmates(
+        lists.get(b) || [],
+        activePickCount,
+      ).includes(a);
+
+      if (aPicksB && !bPicksA) {
+        missingDirected.push({ fromId: b, toId: a });
+      } else if (bPicksA && !aPicksB) {
+        missingDirected.push({ fromId: a, toId: b });
+      } else {
+        missingDirected.push({ fromId: a, toId: b });
+        missingDirected.push({ fromId: b, toId: a });
+      }
+    }
+  }
+
+  const nameOf = (id) =>
+    displayName(studentById?.get?.(id) || studentById?.[id]) || id;
+
+  return {
+    isClique: ids.length <= 1 || missingDirected.length === 0,
+    missingDirected: missingDirected.map((edge) => ({
+      ...edge,
+      fromName: nameOf(edge.fromId),
+      toName: nameOf(edge.toId),
+    })),
+  };
 }
 
 export function summarizeMutualClassmates(

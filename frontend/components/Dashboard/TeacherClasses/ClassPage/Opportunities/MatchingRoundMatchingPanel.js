@@ -7,9 +7,15 @@ import Chip from "../../../../DesignSystem/Chip";
 import InfoPopover from "../../../../DesignSystem/InfoPopover";
 import { ROUND_MATCH_VIEW } from "../../../../Queries/ConnectMatch";
 import {
+  buildClassmateListsByStudent,
   buildOpportunityPreferenceStats,
   buildTeamFirstCongruentGroups,
+  buildTeamPrefsByStudent,
+  describeTeamGroupClosure,
   displayName,
+  getLargestTeamSize,
+  getMaxActiveClassmatePicks,
+  getTeamEligibleOpportunities,
   isStudentInActiveMatch,
 } from "../../../../../lib/connectBallotUtils";
 import {
@@ -378,7 +384,16 @@ function ProjectFirstOpportunityCard({
   );
 }
 
-function TeamFirstGroupCard({ group, preferences, t }) {
+const MISSING_PICK_PREVIEW = 3;
+
+function TeamFirstGroupCard({
+  group,
+  preferences,
+  classmateListsByStudent,
+  activePickCount,
+  teamSize,
+  t,
+}) {
   const sharedHints = useMemo(() => {
     const titleCounts = new Map();
     group.memberIds.forEach((memberId) => {
@@ -400,6 +415,90 @@ function TeamFirstGroupCard({ group, preferences, t }) {
       .map(([title]) => title);
   }, [group.memberIds, preferences]);
 
+  const closure = useMemo(() => {
+    const studentById = new Map(
+      (group.members || []).map((member) => [member.id, member]),
+    );
+    return describeTeamGroupClosure({
+      memberIds: group.memberIds,
+      studentById,
+      classmateListsByStudent,
+      activePickCount,
+    });
+  }, [
+    group.memberIds,
+    group.members,
+    classmateListsByStudent,
+    activePickCount,
+  ]);
+
+  const memberCount = group.members.length;
+  const missingPreview = closure.missingDirected.slice(0, MISSING_PICK_PREVIEW);
+  const missingMore = Math.max(
+    closure.missingDirected.length - missingPreview.length,
+    0,
+  );
+
+  let closureChip;
+  if (memberCount <= 1) {
+    closureChip = {
+      tone: "neutral",
+      label: t(
+        "opportunities.matchingRound.matching.teamGroupSolo",
+        {},
+        { default: "No mutual teammates" },
+      ),
+    };
+  } else if (closure.isClique) {
+    closureChip = {
+      tone: "success",
+      label:
+        memberCount === 2
+          ? t(
+              "opportunities.matchingRound.matching.teamGroupClosedPair",
+              {},
+              { default: "They picked each other" },
+            )
+          : t(
+              "opportunities.matchingRound.matching.teamGroupClosed",
+              { count: memberCount },
+              { default: "All {{count}} picked each other" },
+            ),
+    };
+  } else {
+    closureChip = {
+      tone: "warning",
+      label: t(
+        "opportunities.matchingRound.matching.teamGroupOpen",
+        {},
+        { default: "Connected, but not a closed team" },
+      ),
+    };
+  }
+
+  let sizeChip = null;
+  if (teamSize > 1 && memberCount > 1) {
+    if (memberCount > teamSize) {
+      sizeChip = {
+        tone: "warning",
+        label: t(
+          "opportunities.matchingRound.matching.teamGroupSizeOver",
+          { count: memberCount, teamSize },
+          { default: "{{count}} students for a team of {{teamSize}}" },
+        ),
+      };
+    } else if (memberCount < teamSize) {
+      sizeChip = {
+        tone: "info",
+        label: t(
+          "opportunities.matchingRound.matching.teamGroupSizeUnder",
+          { count: memberCount, teamSize },
+          { default: "Only {{count}} for a team of {{teamSize}}" },
+        ),
+      };
+    }
+  }
+
   return (
     <ItemCard>
       <ItemHeader>
@@ -407,7 +506,7 @@ function TeamFirstGroupCard({ group, preferences, t }) {
           <ItemTitle>
             {t(
               "opportunities.matchingRound.matching.teamGroupTitle",
-              { count: group.members.length },
+              { count: memberCount },
               {
                 default:
                   "{{count}}-student group",
@@ -433,6 +532,40 @@ function TeamFirstGroupCard({ group, preferences, t }) {
           )}
         </div>
       </ItemHeader>
+      <MemberRow>
+        <Chip
+          variant="static"
+          tone={closureChip.tone}
+          label={closureChip.label}
+        />
+        {sizeChip ? (
+          <Chip
+            variant="static"
+            tone={sizeChip.tone}
+            label={sizeChip.label}
+          />
+        ) : null}
+      </MemberRow>
+      {missingPreview.length > 0 ? (
+        <Meta>
+          {missingPreview
+            .map((edge) =>
+              t(
+                "opportunities.matchingRound.matching.teamGroupMissingPick",
+                { from: edge.fromName, to: edge.toName },
+                { default: "{{from}} didn’t pick {{to}}" },
+              ),
+            )
+            .join(" · ")}
+          {missingMore > 0
+            ? ` · ${t(
+                "opportunities.matchingRound.matching.teamGroupMissingMore",
+                { count: missingMore },
+                { default: "+{{count}} more missing picks" },
+              )}`
+            : ""}
+        </Meta>
+      ) : null}
       <MemberRow>
         {group.members.map((member) => (
           <Chip
@@ -550,6 +683,21 @@ export default function MatchingRoundMatchingPanel({
     [rosterStudents, preferences, teamPreferences, matches, opportunities],
   );
 
+  const teamClosureContext = useMemo(() => {
+    const teamPrefsByStudent = buildTeamPrefsByStudent(teamPreferences);
+    const teamEligibleOppIds = getTeamEligibleOpportunities(opportunities).map(
+      (opportunity) => opportunity.id,
+    );
+    return {
+      classmateListsByStudent: buildClassmateListsByStudent(
+        teamPrefsByStudent,
+        teamEligibleOppIds,
+      ),
+      activePickCount: getMaxActiveClassmatePicks(opportunities),
+      teamSize: getLargestTeamSize(opportunities),
+    };
+  }, [teamPreferences, opportunities]);
+
   const preferenceBySubmitterId = useMemo(() => {
     const map = new Map();
     preferences.forEach((preference) => {
@@ -649,6 +797,11 @@ export default function MatchingRoundMatchingPanel({
                 key={group.id}
                 group={group}
                 preferences={preferences}
+                classmateListsByStudent={
+                  teamClosureContext.classmateListsByStudent
+                }
+                activePickCount={teamClosureContext.activePickCount}
+                teamSize={teamClosureContext.teamSize}
                 t={t}
               />
             ))
