@@ -1200,6 +1200,59 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
           default: "Draft saved",
         })
     : null;
+
+  // Editable ranking with round opportunities available, but nothing favorited yet
+  // (covers both first entry before a draft exists, and an existing draft).
+  // Submitted/closed rankings stay reviewable; drift repair takes precedence.
+  const showEmptyFavoritesZeroState =
+    isOpen &&
+    !submitted &&
+    favoriteOppIdsInRound.size === 0 &&
+    roundOpportunities.length > 0 &&
+    !showDriftRepairModal;
+
+  if (showEmptyFavoritesZeroState) {
+    return (
+      <RankPageShell>
+        <RankFormChrome
+          title={pageTitle}
+          backLabel={backLabel}
+          onBack={handleCancel}
+          statusChipLabel={statusChipLabel}
+          submitted={submitted}
+        />
+        <RankPageBody>
+          <Card>
+            <h2>
+              {t(
+                "opportunities.studentView.rankForm.emptyFavoritesTitle",
+                {},
+                { default: "No favorited opportunities yet" },
+              )}
+            </h2>
+            <p className="helper">
+              {t(
+                "opportunities.studentView.rankForm.emptyFavoritesHint",
+                {},
+                {
+                  default:
+                    "Go back and tap the star on the opportunities you want to rank.",
+                },
+              )}
+            </p>
+            <Button type="button" variant="filled" onClick={handleCancel}>
+              {t(
+                "opportunities.studentView.rankForm.addFavorites",
+                {},
+                { default: "Add favorites" },
+              )}
+            </Button>
+          </Card>
+        </RankPageBody>
+      </RankPageShell>
+    );
+  }
+
   const handleSaveDraft = async () => {
     const stepKey = stepKeys[currentStep - 1] || stepKeys[0];
     if (

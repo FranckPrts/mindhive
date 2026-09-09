@@ -1784,6 +1784,7 @@
 				"classmatesSearch": "Add a classmate — search by name",
 				"classmatesSearchEmpty": "No classmates match your search.",
 				"dragHint": "Drag to reorder",
+				"addFavorites": "Add favorites",
 				"emptyFavoritesHint": "Go back and tap the star on the opportunities you want to rank.",
 				"emptyFavoritesTitle": "No favorited opportunities yet",
 				"expired": "This opportunity ended on {{date}}. You can no longer rank it.",
