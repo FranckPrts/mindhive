@@ -66,6 +66,7 @@ import MatchingRoundStudentBallotPanel, {
   STUDENT_RANKING_SUB_MODES,
 } from "./MatchingRoundStudentBallotPanel";
 import MatchingRoundStudentAssessmentSetup from "./MatchingRoundStudentAssessmentSetup";
+import MatchingRoundMatchingPanel from "./MatchingRoundMatchingPanel";
 import MatchingRoundFormPreviewModal from "./MatchingRoundFormPreviewModal";
 import OpportunityExportModal from "./OpportunityExportModal";
 import TeacherFormWizard from "../../../../Forms/TeacherFormWizard";
@@ -3292,9 +3293,11 @@ function MatchingRoundEditor({
   };
 
   const renderMatchesPanel = () => (
-    <div className="classTabMatchingRoundPanel">
-      {/* Matching workflows land here in a later phase. */}
-    </div>
+    <MatchingRoundMatchingPanel
+      roundId={roundId}
+      students={myclass?.students || []}
+      enabled={activePanel === PANELS.matches && !isMatchesDisabled}
+    />
   );
 
   return (

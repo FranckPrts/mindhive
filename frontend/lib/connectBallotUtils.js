@@ -321,3 +321,168 @@ export function formatQuestionAnswer(answer, questionType) {
   if (typeof answer === "object") return JSON.stringify(answer);
   return String(answer);
 }
+
+const INACTIVE_MATCH_STATUSES = new Set(["cancelled", "declined"]);
+
+/** True when the student holds a match that removes them from the unmatched pool. */
+export function isStudentInActiveMatch(match) {
+  if (!match) return false;
+  return !INACTIVE_MATCH_STATUSES.has(match.status);
+}
+
+/**
+ * Preference-rank stats for one opportunity from submitted ballots.
+ * @returns {{ total: number, countsByRank: Map<number, number>, students: Array<{ student, rank, name }> }}
+ */
+export function buildOpportunityPreferenceStats(
+  opportunityId,
+  preferences,
+  { submittedOnly = true } = {},
+) {
+  const students = [];
+  (preferences || []).forEach((preference) => {
+    if (submittedOnly && preference.status !== "submitted") return;
+    const item = (preference.items || []).find((entry) => {
+      if (entry.opportunity?.id !== opportunityId) return false;
+      if (entry.rank === "" || entry.rank == null) return false;
+      return true;
+    });
+    if (!item || !preference.submitter) return;
+    const rank = Number(item.rank);
+    if (!Number.isFinite(rank)) return;
+    students.push({
+      student: preference.submitter,
+      rank,
+      name: displayName(preference.submitter),
+    });
+  });
+
+  students.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    return a.name.localeCompare(b.name);
+  });
+
+  const countsByRank = new Map();
+  students.forEach(({ rank }) => {
+    countsByRank.set(rank, (countsByRank.get(rank) || 0) + 1);
+  });
+
+  return {
+    total: students.length,
+    countsByRank,
+    students,
+  };
+}
+
+/**
+ * Connected components of mutual classmate edges among unmatched team-first students.
+ * Isolated team-first students become singleton groups.
+ *
+ * @returns {Array<{ id: string, members: object[], memberIds: string[] }>}
+ */
+export function buildTeamFirstCongruentGroups({
+  students = [],
+  preferences = [],
+  teamPreferences = [],
+  matches = [],
+  opportunities = [],
+}) {
+  const prefByStudentId = new Map();
+  preferences.forEach((preference) => {
+    const id = preference.submitter?.id;
+    if (id) prefByStudentId.set(id, preference);
+  });
+
+  const matchByStudentId = new Map();
+  matches.forEach((match) => {
+    const id = match.student?.id;
+    if (id && isStudentInActiveMatch(match)) {
+      matchByStudentId.set(id, match);
+    }
+  });
+
+  const teamPrefsByStudent = buildTeamPrefsByStudent(teamPreferences);
+  const teamEligibleOppIds = getTeamEligibleOpportunities(opportunities).map(
+    (opportunity) => opportunity.id,
+  );
+  const classmateListsByStudent = buildClassmateListsByStudent(
+    teamPrefsByStudent,
+    teamEligibleOppIds,
+  );
+  const activePickCount = getMaxActiveClassmatePicks(opportunities);
+
+  const teamFirstStudents = (students || []).filter((student) => {
+    if (!student?.id || matchByStudentId.has(student.id)) return false;
+    const preference = prefByStudentId.get(student.id);
+    const queue = inferBallotQueue(
+      teamPrefsByStudent.get(student.id) || [],
+      preference,
+    );
+    return queue === "team_first";
+  });
+
+  const teamFirstIds = new Set(teamFirstStudents.map((student) => student.id));
+  const adjacency = new Map();
+  teamFirstStudents.forEach((student) => {
+    adjacency.set(student.id, new Set());
+  });
+
+  teamFirstStudents.forEach((student) => {
+    const classmateIds = classmateListsByStudent.get(student.id) || [];
+    classmateIds.forEach((classmateId) => {
+      if (!teamFirstIds.has(classmateId)) return;
+      const status = getClassmateMutualStatus(
+        student.id,
+        classmateId,
+        classmateListsByStudent,
+        activePickCount,
+      );
+      if (status !== "mutual") return;
+      adjacency.get(student.id)?.add(classmateId);
+      adjacency.get(classmateId)?.add(student.id);
+    });
+  });
+
+  const visited = new Set();
+  const groups = [];
+  const studentById = new Map(
+    teamFirstStudents.map((student) => [student.id, student]),
+  );
+
+  teamFirstStudents.forEach((student) => {
+    if (visited.has(student.id)) return;
+    const queue = [student.id];
+    visited.add(student.id);
+    const memberIds = [];
+    while (queue.length) {
+      const currentId = queue.shift();
+      memberIds.push(currentId);
+      (adjacency.get(currentId) || []).forEach((neighborId) => {
+        if (visited.has(neighborId)) return;
+        visited.add(neighborId);
+        queue.push(neighborId);
+      });
+    }
+    memberIds.sort((a, b) =>
+      displayName(studentById.get(a)).localeCompare(
+        displayName(studentById.get(b)),
+      ),
+    );
+    groups.push({
+      id: memberIds.slice().sort().join("__"),
+      memberIds,
+      members: memberIds.map((id) => studentById.get(id)).filter(Boolean),
+    });
+  });
+
+  groups.sort((a, b) => {
+    if (b.members.length !== a.members.length) {
+      return b.members.length - a.members.length;
+    }
+    const aName = displayName(a.members[0]);
+    const bName = displayName(b.members[0]);
+    return aName.localeCompare(bName);
+  });
+
+  return groups;
+}
