@@ -19,10 +19,13 @@ import {
   getTeamEligibleOpportunities,
   isStudentInActiveMatch,
 } from "../../../../../lib/connectBallotUtils";
-import {
-  MATCHING_QUEUE_PROJECT_FIRST,
-} from "../../../../../lib/connectPreferenceMatchingPreference";
 import MatchingRoundMatchingHeaderBar from "./MatchingRoundMatchingHeaderBar";
+import MatchingRoundProjectPivotGrid from "./MatchingRoundProjectPivotGrid";
+import {
+  MATCHING_VIEW_PIVOT,
+  MATCHING_VIEW_PROJECT_FIRST,
+  MATCHING_VIEW_TEAM_FIRST,
+} from "./matchingViewModes";
 
 const Shell = styled.div`
   display: grid;
@@ -649,7 +652,7 @@ export default function MatchingRoundMatchingPanel({
   enabled = true,
 }) {
   const { t } = useTranslation("classes");
-  const [queueMode, setQueueMode] = useState(MATCHING_QUEUE_PROJECT_FIRST);
+  const [queueMode, setQueueMode] = useState(MATCHING_VIEW_PROJECT_FIRST);
   const [peopleQuery, setPeopleQuery] = useState("");
   const [opportunityQuery, setOpportunityQuery] = useState("");
 
@@ -820,7 +823,7 @@ export default function MatchingRoundMatchingPanel({
         onOpportunityQueryChange={setOpportunityQuery}
       />
 
-      {queueMode === MATCHING_QUEUE_PROJECT_FIRST ? (
+      {queueMode === MATCHING_VIEW_PROJECT_FIRST ? (
         <List>
           {filteredOpportunities.length === 0 ? (
             <EmptyNote>
@@ -842,7 +845,9 @@ export default function MatchingRoundMatchingPanel({
             ))
           )}
         </List>
-      ) : (
+      ) : null}
+
+      {queueMode === MATCHING_VIEW_TEAM_FIRST ? (
         <List>
           {filteredTeamGroups.length === 0 ? (
             <EmptyNote>
@@ -871,7 +876,15 @@ export default function MatchingRoundMatchingPanel({
             ))
           )}
         </List>
-      )}
+      ) : null}
+
+      {queueMode === MATCHING_VIEW_PIVOT ? (
+        <MatchingRoundProjectPivotGrid
+          opportunities={filteredOpportunities}
+          preferences={preferences}
+          matchesByOpportunity={matchesByOpportunity}
+        />
+      ) : null}
     </Shell>
   );
 }

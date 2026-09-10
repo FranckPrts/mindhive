@@ -1358,6 +1358,7 @@
 				"queueModeAria": "Matching view",
 				"queueTeamFirst": "Team first",
 				"queueProjectFirst": "Project first",
+				"queuePivot": "Pivot table",
 				"searchPeoplePlaceholder": "Search people…",
 				"searchOpportunityPlaceholder": "Search opportunities…",
 				"capacity": "{{used}} / {{capacity}} placed",
@@ -1365,6 +1366,20 @@
 				"noMatchesYet": "No matches yet.",
 				"projectEmpty": "No opportunities match these filters.",
 				"teamEmpty": "No team-first groups match these filters.",
+				"pivotEmpty": "No opportunities match these filters.",
+				"pivotNoRankings": "—",
+				"pivotColumns": {
+					"opportunity": "Opportunity",
+					"rankedStudents": "Ranked students",
+					"rankedCount": "Ranked count",
+					"placed": "Placed"
+				},
+				"pivotColumnHints": {
+					"opportunity": "Opportunity title. Rows are sorted A–Z by default.",
+					"rankedStudents": "Students who included this opportunity on a submitted ballot, with their rank. Use this list to compare names to an external record.",
+					"rankedCount": "How many submitted ballots include this opportunity.",
+					"placed": "Students already matched to this opportunity versus capacity."
+				},
 				"teamGroupTitle": "{{count}}-student group",
 				"teamGroupSharedOpps": "Shared interest",
 				"teamGroupNoSharedOpps": "No shared ranked opportunities yet.",
