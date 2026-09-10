@@ -1366,7 +1366,7 @@
 				"projectEmpty": "No opportunities match these filters.",
 				"teamEmpty": "No team-first groups match these filters.",
 				"teamGroupTitle": "{{count}}-student group",
-				"teamGroupSharedOpps": "Shared interest: {{titles}}",
+				"teamGroupSharedOpps": "Shared interest",
 				"teamGroupNoSharedOpps": "No shared ranked opportunities yet.",
 				"teamGroupClosed": "All {{count}} picked each other",
 				"teamGroupClosedPair": "They picked each other",

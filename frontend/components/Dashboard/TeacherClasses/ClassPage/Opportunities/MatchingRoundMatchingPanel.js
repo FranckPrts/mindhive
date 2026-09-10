@@ -69,6 +69,15 @@ const Meta = styled.p`
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
 `;
 
+const SharedInterestList = styled.ul`
+  margin: 4px 0 0;
+  padding-inline-start: 1.25em;
+  display: grid;
+  gap: 2px;
+  font: var(--MH-Type-Body-Base);
+  color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
+`;
+
 const MemberRow = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -411,7 +420,7 @@ function TeamFirstGroupCard({
         if (b[1] !== a[1]) return b[1] - a[1];
         return a[0].localeCompare(b[0]);
       })
-      .slice(0, 3)
+      .slice(0, 5)
       .map(([title]) => title);
   }, [group.memberIds, preferences]);
 
@@ -514,13 +523,20 @@ function TeamFirstGroupCard({
             )}
           </ItemTitle>
           {sharedHints.length > 0 ? (
-            <Meta>
-              {t(
-                "opportunities.matchingRound.matching.teamGroupSharedOpps",
-                { titles: sharedHints.join(" · ") },
-                { default: "Shared interest: {{titles}}" },
-              )}
-            </Meta>
+            <div>
+              <Meta>
+                {t(
+                  "opportunities.matchingRound.matching.teamGroupSharedOpps",
+                  {},
+                  { default: "Shared interest" },
+                )}
+              </Meta>
+              <SharedInterestList>
+                {sharedHints.map((title) => (
+                  <li key={title}>{title}</li>
+                ))}
+              </SharedInterestList>
+            </div>
           ) : (
             <Meta>
               {t(
