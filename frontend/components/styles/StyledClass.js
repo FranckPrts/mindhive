@@ -2184,25 +2184,6 @@ const StyledClass = styled.div`
       color: #5f6871 !important;
     }
 
-    .classTabMatchingRoundFooter {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 12px 16px;
-      padding-top: 8px;
-      margin-top: 4px;
-      border-top: 1px solid #ece9e6;
-
-      .matchingRoundUnsavedHint {
-        margin: 0;
-        margin-right: auto;
-        font: var(--MH-Type-Label-Small);
-        letter-spacing: 0;
-        color: #8a6d3b;
-      }
-    }
-
     .classTabFormGrid {
       display: grid;
       gap: 16px;

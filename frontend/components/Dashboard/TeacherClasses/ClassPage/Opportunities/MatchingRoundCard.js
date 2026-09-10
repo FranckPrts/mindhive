@@ -54,6 +54,7 @@ import {
   getPreferenceTimeWindowState,
   hydratePreferenceWindowBound,
   zonedWallTimeToUtcIso,
+  SCHEDULE_SETTING_KEYS,
   DEFAULT_PREFERENCE_WINDOW_OPEN_TIME,
   DEFAULT_PREFERENCE_WINDOW_CLOSE_TIME,
   DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
@@ -247,6 +248,23 @@ const SettingsModalContent = styled.div`
   }
 `;
 
+/** Portal-safe: Modal actions mount outside `.classTabPage` / SettingsModalContent. */
+const SettingsModalActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+
+  .matchingRoundSettingsUnsavedHint {
+    margin: 0;
+    font: var(--MH-Type-Label-Small);
+    letter-spacing: 0;
+    color: #8a6d3b;
+  }
+`;
+
 function getRoundStatusParts(status, t) {
   const key = ROUND_STATUS_KEYS[status];
   if (!key) return { short: status, hint: "" };
@@ -423,6 +441,38 @@ function snapshotsEqual(a, b) {
     JSON.stringify(a.formDefinitions) === JSON.stringify(b.formDefinitions) &&
     a.sponsorFormsVisible === b.sponsorFormsVisible
   );
+}
+
+/** Settings modal fields only (title, description, preference window, schedule). */
+function settingsSnapshotsEqual(a, b) {
+  if (!a || !b) return a === b;
+  return (
+    a.title === b.title &&
+    a.description === b.description &&
+    a.openAt === b.openAt &&
+    a.openAtTime === b.openAtTime &&
+    a.closeAt === b.closeAt &&
+    a.closeAtTime === b.closeAtTime &&
+    a.preferenceWindowTimeZone === b.preferenceWindowTimeZone &&
+    a.introductionAt === b.introductionAt &&
+    a.matchingStartAt === b.matchingStartAt &&
+    a.matchingEndAt === b.matchingEndAt &&
+    a.reviewStartAt === b.reviewStartAt &&
+    a.reviewEndAt === b.reviewEndAt &&
+    a.sponsorIntroAt === b.sponsorIntroAt
+  );
+}
+
+/** True when saved settings exist but the live form lost them (stale wipe / HMR). */
+function settingsLookWipedRelativeToSnapshot(inputs, snap) {
+  if (!snap || !inputs) return false;
+  if ((snap.title || "").trim() && !(inputs.title || "").trim()) return true;
+  if ((snap.openAt || "") && !(inputs.openAt || "")) return true;
+  if ((snap.closeAt || "") && !(inputs.closeAt || "")) return true;
+  for (const key of SCHEDULE_SETTING_KEYS) {
+    if ((snap[key] || "") && !(inputs[key] || "")) return true;
+  }
+  return false;
 }
 
 function sortOpportunitiesByTitle(opportunities) {
@@ -651,7 +701,9 @@ function MatchingRoundEditor({
   });
   const round = roundData?.connectRound;
 
-  const { inputs, handleChange, handleMultipleUpdate } = useForm(EMPTY_FORM);
+  const { inputs, handleChange, handleMultipleUpdate } = useForm(EMPTY_FORM, {
+    freezeInitialSync: true,
+  });
 
   const roundStatusForPanels =
     (typeof inputs?.status === "string" && inputs.status) ||
@@ -798,6 +850,26 @@ function MatchingRoundEditor({
     snapshotRevision,
   ]);
 
+  const isSettingsDirty = useMemo(() => {
+    if (!formInitialized || !savedSnapshotRef.current) return false;
+    const current = buildSnapshot(
+      inputs,
+      selectedOpportunities,
+      selectedQuestions,
+      selectedFormDefinitionIds,
+      sponsorFormsVisible,
+    );
+    return !settingsSnapshotsEqual(current, savedSnapshotRef.current);
+  }, [
+    formInitialized,
+    inputs,
+    selectedOpportunities,
+    selectedQuestions,
+    selectedFormDefinitionIds,
+    sponsorFormsVisible,
+    snapshotRevision,
+  ]);
+
   const confirmIfDirty = useCallback(() => {
     if (!formInitialized || !savedSnapshotRef.current) return true;
     const current = buildSnapshot(
@@ -822,6 +894,52 @@ function MatchingRoundEditor({
     sponsorFormsVisible,
     t,
   ]);
+
+  const revertSettingsFromSnapshot = useCallback(() => {
+    const snapshot = savedSnapshotRef.current;
+    if (!snapshot) return;
+    handleMultipleUpdate({
+      title: snapshot.title || "",
+      description: snapshot.description || "",
+      openAt: snapshot.openAt || "",
+      openAtTime: snapshot.openAtTime || DEFAULT_PREFERENCE_WINDOW_OPEN_TIME,
+      closeAt: snapshot.closeAt || "",
+      closeAtTime: snapshot.closeAtTime || DEFAULT_PREFERENCE_WINDOW_CLOSE_TIME,
+      preferenceWindowTimeZone:
+        snapshot.preferenceWindowTimeZone ||
+        DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
+      introductionAt: snapshot.introductionAt || "",
+      matchingStartAt: snapshot.matchingStartAt || "",
+      matchingEndAt: snapshot.matchingEndAt || "",
+      reviewStartAt: snapshot.reviewStartAt || "",
+      reviewEndAt: snapshot.reviewEndAt || "",
+      sponsorIntroAt: snapshot.sponsorIntroAt || "",
+    });
+  }, [handleMultipleUpdate]);
+
+  const requestCloseSettingsModal = useCallback(() => {
+    if (isNew || !isSettingsDirty) {
+      setSettingsModalOpen(false);
+    }
+  }, [isNew, isSettingsDirty]);
+
+  const handleSettingsCloseClick = useCallback(() => {
+    if (!isNew && isSettingsDirty) {
+      revertSettingsFromSnapshot();
+    }
+    setSettingsModalOpen(false);
+  }, [isNew, isSettingsDirty, revertSettingsFromSnapshot]);
+
+  // If settings fields were wiped after hydrate (stale form update / HMR), restore
+  // from the last saved snapshot when the settings modal opens.
+  useEffect(() => {
+    if (!settingsModalOpen || isNew || !formInitialized) return;
+    const snap = savedSnapshotRef.current;
+    if (!settingsLookWipedRelativeToSnapshot(inputs, snap)) return;
+    revertSettingsFromSnapshot();
+    // Sample inputs only when the modal opens — do not fight intentional clears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open-time recovery only
+  }, [settingsModalOpen, isNew, formInitialized, revertSettingsFromSnapshot]);
 
   useEffect(() => {
     const classCode = myclass?.code;
@@ -861,6 +979,12 @@ function MatchingRoundEditor({
     setSelectedFormDefinitionIds([]);
     setSponsorFormsVisible(false);
   }, [isCreate, initialNetworkId, selectedNetworkId]);
+
+  // Re-hydrate when the workspace round identity changes.
+  useEffect(() => {
+    setFormInitialized(false);
+    savedSnapshotRef.current = null;
+  }, [roundId, isNew]);
 
   useEffect(() => {
     if (isNew) {
@@ -3435,17 +3559,28 @@ function MatchingRoundEditor({
       />
       <Modal
         open={settingsModalOpen}
-        onClose={() => setSettingsModalOpen(false)}
+        onClose={requestCloseSettingsModal}
         title={settingsLabel}
         maxWidth={640}
         maxHeight="90vh"
         hideScrollbar
         actions={
-          <>
+          <SettingsModalActions>
+            {!isNew && isSettingsDirty ? (
+              <p className="matchingRoundSettingsUnsavedHint">
+                {t(
+                  "opportunities.matchingRound.settingsUnsavedCloseHint",
+                  {},
+                  {
+                    default: "Closing discards unsaved changes.",
+                  },
+                )}
+              </p>
+            ) : null}
             <Button
               variant="text"
               type="button"
-              onClick={() => setSettingsModalOpen(false)}
+              onClick={handleSettingsCloseClick}
             >
               {t("close", {}, { default: "Close" })}
             </Button>
@@ -3467,7 +3602,7 @@ function MatchingRoundEditor({
                       default: "Save changes",
                     })}
             </Button>
-          </>
+          </SettingsModalActions>
         }
       >
         <SettingsModalContent>
@@ -3496,15 +3631,11 @@ function MatchingRoundEditor({
               renderStudentRankingPanel()}
             {activePanel === PANELS.matches && renderMatchesPanel()}
 
-            {isDirty || isNew ? (
-              <div className="classTabMatchingRoundFooter">
-                {isDirty ? (
-                  <p className="matchingRoundUnsavedHint">
-                    {t("opportunities.matchingRound.unsavedChanges", {}, {
-                      default: "Unsaved changes",
-                    })}
-                  </p>
-                ) : null}
+            {isNew ? (
+              <div
+                className="classTabActionBar"
+                style={{ justifyContent: "flex-end" }}
+              >
                 <Button
                   variant="filled"
                   onClick={handleSave}
@@ -3514,13 +3645,9 @@ function MatchingRoundEditor({
                     ? t("opportunities.matchingRound.saving", {}, {
                         default: "Saving…",
                       })
-                    : isNew
-                      ? t("opportunities.matchingRound.createRound", {}, {
-                          default: "Create round",
-                        })
-                      : t("opportunities.matchingRound.saveRound", {}, {
-                          default: "Save changes",
-                        })}
+                    : t("opportunities.matchingRound.createRound", {}, {
+                        default: "Create round",
+                      })}
                 </Button>
               </div>
             ) : null}

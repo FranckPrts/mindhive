@@ -986,16 +986,18 @@ const MatchingRoundStudentBallotPanel = forwardRef(
           {},
           { default: "Received classmates" },
         ),
-        preferredClassmates: t(
-          "opportunities.matchingRound.studentBallotExport.columns.preferredClassmates",
-          {},
-          { default: "Preferred classmates" },
-        ),
-        rankedOpportunities: t(
-          "opportunities.matchingRound.studentBallotExport.columns.rankedOpportunities",
-          {},
-          { default: "Ranked opportunities" },
-        ),
+        preferredClassmateRank: (n) =>
+          t(
+            "opportunities.matchingRound.studentBallotExport.columns.preferredClassmateRank",
+            { n },
+            { default: "Preferred classmate {{n}}" },
+          ),
+        rankedOpportunityRank: (n) =>
+          t(
+            "opportunities.matchingRound.studentBallotExport.columns.rankedOpportunityRank",
+            { n },
+            { default: "Ranked opportunity {{n}}" },
+          ),
         additionalNotes: t(
           "opportunities.matchingRound.studentBallotExport.columns.additionalNotes",
           {},

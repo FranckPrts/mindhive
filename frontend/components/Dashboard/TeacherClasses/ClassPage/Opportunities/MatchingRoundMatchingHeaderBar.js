@@ -3,9 +3,10 @@ import styled from "styled-components";
 
 import ButtonGroup from "../../../../DesignSystem/ButtonGroup";
 import {
-  MATCHING_QUEUE_PROJECT_FIRST,
-  MATCHING_QUEUE_TEAM_FIRST,
-} from "../../../../../lib/connectPreferenceMatchingPreference";
+  MATCHING_VIEW_PIVOT,
+  MATCHING_VIEW_PROJECT_FIRST,
+  MATCHING_VIEW_TEAM_FIRST,
+} from "./matchingViewModes";
 
 const HeaderCard = styled.div`
   display: flex;
@@ -48,7 +49,7 @@ const SearchInput = styled.input`
 `;
 
 export default function MatchingRoundMatchingHeaderBar({
-  queueMode = MATCHING_QUEUE_PROJECT_FIRST,
+  queueMode = MATCHING_VIEW_PROJECT_FIRST,
   onQueueModeChange,
   peopleQuery = "",
   onPeopleQueryChange,
@@ -59,7 +60,7 @@ export default function MatchingRoundMatchingHeaderBar({
 
   const queueItems = [
     {
-      value: MATCHING_QUEUE_TEAM_FIRST,
+      value: MATCHING_VIEW_TEAM_FIRST,
       label: t(
         "opportunities.matchingRound.matching.queueTeamFirst",
         {},
@@ -67,11 +68,19 @@ export default function MatchingRoundMatchingHeaderBar({
       ),
     },
     {
-      value: MATCHING_QUEUE_PROJECT_FIRST,
+      value: MATCHING_VIEW_PROJECT_FIRST,
       label: t(
         "opportunities.matchingRound.matching.queueProjectFirst",
         {},
         { default: "Project first" },
+      ),
+    },
+    {
+      value: MATCHING_VIEW_PIVOT,
+      label: t(
+        "opportunities.matchingRound.matching.queuePivot",
+        {},
+        { default: "Pivot table" },
       ),
     },
   ];
