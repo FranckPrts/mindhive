@@ -67,6 +67,7 @@ import backfillLowercaseKeys from "./backfillLowercaseKeys";
 import backfillTicketPermissions from "./backfillTicketPermissions";
 import pruneTicketScreenshots from "./pruneTicketScreenshots";
 import closeTicketsFromCommit from "./closeTicketsFromCommit";
+import ticketForAgent from "./ticketForAgent";
 import backfillProjectBoardFormScope from "./backfillProjectBoardFormScope";
 import backfillProposalBoardPublicIds from "./backfillProposalBoardPublicIds";
 import syncClassTemplateBoards from "./syncClassTemplateBoards";
@@ -291,8 +292,11 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         backfillTicketPermissions(
           dryRun: Boolean
         ): BackfillTicketPermissionsResult!
+        # secret stands in for a session so a scheduled job can run this;
+        # omit it and a canManageTickets session is required instead.
         pruneTicketScreenshots(
           dryRun: Boolean
+          secret: String
         ): PruneTicketScreenshotsResult!
         # Called by CI, authenticated by a shared secret rather than a
         # session. See mutations/closeTicketsFromCommit.ts.
@@ -358,7 +362,32 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         email: String
         classNetwork: NetworkInviteContextNetwork
       }
+      type AgentTicket {
+        id: ID!
+        title: String!
+        surface: String!
+        kind: String
+        status: String
+        priority: String
+        description: String
+        evidence: JSON
+        figmaNodeId: String
+        reporter: String
+        createdAt: String
+        resolvedAt: String
+        """
+        Whether a capture exists. The image itself is never returned to a
+        tool — see mutations/ticketForAgent.ts.
+        """
+        hasScreenshot: Boolean!
+      }
+
       extend type Query {
+        """
+        One ticket, for a CLI or agent with no session. Shared-secret
+        authenticated, read-only, single-id. See mutations/ticketForAgent.ts.
+        """
+        ticketForAgent(secret: String!, id: ID!): AgentTicket
         resolveMilestonesForBoard(boardId: ID!): [Milestone!]!
         # Resolve the most-specific published FormDefinition for the
         # current viewer's scope. Pass any subset of the scope IDs the
@@ -416,6 +445,7 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
     resolvers: {
       Opportunity: opportunityMultiselectResolvers,
       Query: {
+        ticketForAgent,
         resolveFormDefinition,
         resolveMilestonesForBoard,
         networkInviteContext,

@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from "crypto";
+
 // Deletes filing-time screenshots once their ticket has been resolved long
 // enough, so captures of live classes and boards do not accumulate forever.
 //
@@ -12,6 +14,11 @@
 //
 // Dry-run by default. Pass dryRun: false to delete. Idempotent.
 //
+// Two ways in. An admin with canManageTickets can run it from the Admin UI or
+// Apollo sandbox; a scheduled job passes the same shared secret CI uses for
+// closeTicketsFromCommit, because cron has no session. Retention that depends
+// on someone remembering to click a button is not retention.
+//
 // Retention is also stated to the user in the frontend's
 // Dashboard/Tickets/TicketPage.js caption — keep the two in step.
 
@@ -20,24 +27,39 @@ export const SCREENSHOT_RETENTION_DAYS = 90;
 
 const RESOLVED_STATUSES = ["SHIPPED", "WONTFIX"];
 
+function secretMatches(provided: string): boolean {
+  const expected = process.env.TICKET_WEBHOOK_SECRET;
+  if (!expected) return false; // fail closed
+  const a = createHash("sha256").update(provided).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
 async function pruneTicketScreenshots(
   root: any,
-  { dryRun = true }: { dryRun?: boolean },
+  { dryRun = true, secret }: { dryRun?: boolean; secret?: string },
   context: any
 ) {
-  const session = context.session;
-  if (!session?.itemId) {
-    throw new Error("You must be signed in to run this mutation.");
-  }
-  const profile = await context.query.Profile.findOne({
-    where: { id: session.itemId },
-    query: "permissions { canManageTickets }",
-  });
-  const canManage = (profile?.permissions || []).some(
-    (p: any) => p.canManageTickets
-  );
-  if (!canManage) {
-    throw new Error("Forbidden: canManageTickets required.");
+  // A valid shared secret stands in for a session, for the scheduled run.
+  if (secret) {
+    if (!secretMatches(secret)) {
+      throw new Error("Forbidden.");
+    }
+  } else {
+    const session = context.session;
+    if (!session?.itemId) {
+      throw new Error("You must be signed in to run this mutation.");
+    }
+    const profile = await context.query.Profile.findOne({
+      where: { id: session.itemId },
+      query: "permissions { canManageTickets }",
+    });
+    const canManage = (profile?.permissions || []).some(
+      (p: any) => p.canManageTickets
+    );
+    if (!canManage) {
+      throw new Error("Forbidden: canManageTickets required.");
+    }
   }
 
   const cutoff = new Date(
