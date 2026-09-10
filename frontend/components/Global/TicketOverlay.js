@@ -6,6 +6,7 @@ import styled from "styled-components";
 import { UserContext } from "./Authorized";
 import Button from "../DesignSystem/Button";
 import { surfaceForRoute } from "../../lib/surfaces";
+import { parseFigmaUrl, describeFigmaUrl } from "../../lib/figmaUrl";
 import {
   CREATE_TICKET,
   CREATE_TICKET_WITH_SCREENSHOT,
@@ -95,6 +96,7 @@ export default function TicketOverlay() {
     kind: "BUG",
     priority: "NORMAL",
     description: "",
+    figmaDesignUrl: "",
     withScreenshot: true,
   });
 
@@ -106,6 +108,10 @@ export default function TicketOverlay() {
   const surface = surfaceForRoute(router.pathname, router.query);
   const surfaceKey = surface?.key ?? null;
   const noCapture = captureForbidden(surfaceKey);
+
+  const figmaParsed = parseFigmaUrl(form.figmaDesignUrl);
+  const figmaSummary = describeFigmaUrl(form.figmaDesignUrl);
+  const figmaHasNode = !!figmaParsed?.nodeId;
 
   const { data, refetch } = useQuery(GET_TICKETS_FOR_SURFACE, {
     variables: { surface: surfaceKey },
@@ -201,6 +207,9 @@ export default function TicketOverlay() {
         body: form.description ? { text: form.description } : null,
         evidence: evidence(),
         reporterId: user.id,
+        // Empty string would fail the backend's figma.com check; null is
+        // the way to say "not provided".
+        figmaDesignUrl: form.figmaDesignUrl.trim() || null,
       };
       const result = screenshot
         ? await createTicketWithScreenshot({
@@ -351,6 +360,37 @@ export default function TicketOverlay() {
                   onChange={set("description")}
                   placeholder="Steps, the expected behaviour, the design it should match"
                 />
+              </Field>
+
+              <Field>
+                <label htmlFor="mh-ticket-figma">
+                  Where is the intended design? <Optional>optional</Optional>
+                </label>
+                <input
+                  id="mh-ticket-figma"
+                  type="url"
+                  value={form.figmaDesignUrl}
+                  onChange={set("figmaDesignUrl")}
+                  placeholder="Paste a Figma link"
+                  aria-describedby="mh-ticket-figma-hint"
+                />
+                {/* Parsed live so a wrong paste — a prototype link, a URL with
+                    no node-id, a page that is not Figma — is visible here
+                    rather than months later when someone clicks it. */}
+                {form.figmaDesignUrl.trim() !== "" &&
+                  (figmaSummary ? (
+                    <Hint id="mh-ticket-figma-hint">Links to {figmaSummary}</Hint>
+                  ) : (
+                    <Hint id="mh-ticket-figma-hint" tone="warn">
+                      That does not look like a figma.com link.
+                    </Hint>
+                  ))}
+                {form.figmaDesignUrl.trim() !== "" && figmaSummary && !figmaHasNode && (
+                  <Hint id="mh-ticket-figma-hint" tone="warn">
+                    No frame selected — the link opens the whole file. Select the
+                    frame in Figma and copy the link again to point at it.
+                  </Hint>
+                )}
               </Field>
 
               {noCapture ? (
@@ -534,6 +574,15 @@ const Field = styled.div`
 const Optional = styled.span`
   font: var(--MH-Type-Body-Small);
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
+`;
+
+const Hint = styled.p`
+  margin: 6px 0 0;
+  font: var(--MH-Type-Body-Small);
+  color: ${({ tone }) =>
+    tone === "warn"
+      ? "var(--MH-Theme-Warning-Dark, #8f1f14)"
+      : "var(--MH-Theme-Neutrals-Dark, #6a6a6a)"};
 `;
 
 const Row = styled.div`

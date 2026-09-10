@@ -119,6 +119,20 @@ export const Ticket = list({
      * /participate routes at all.
      */
     screenshot: image({ storage: "ticketScreenshots" }),
+    /**
+     * Where the *intended* design lives — a Figma URL pasted by the reporter.
+     *
+     * Distinct from `figmaNodeId` below, which records a frame captured FROM
+     * the shipped page. This one points the other way: at what the surface was
+     * supposed to look like. A drift ticket carrying both is a before/after
+     * pair, and that is the whole argument of the ticket in one place.
+     *
+     * Stored as the pasted URL rather than parsed into file key + node id: the
+     * URL is what a human can click, and the parts are three lines to derive
+     * wherever they are needed (`lib/figmaUrl.js`). Two stored copies of the
+     * same fact would only drift apart.
+     */
+    figmaDesignUrl: text(),
     /** Figma frame captured from this surface while resolving the ticket. */
     figmaNodeId: text(),
     /** Set by the Notion mirror, never by a human. */
@@ -159,6 +173,19 @@ export const Ticket = list({
         data.resolvedAt = new Date().toISOString();
       } else if (!isResolved && wasResolved) {
         data.resolvedAt = null;
+      }
+
+      // A wrong link is worse than none: it looks authoritative and only
+      // fails when someone clicks it. Empty is always allowed.
+      const url = data.figmaDesignUrl;
+      if (typeof url === "string" && url.trim() !== "") {
+        const trimmed = url.trim();
+        if (!/^https:\/\/(www\.)?figma\.com\/(design|file|board|proto)\//.test(trimmed)) {
+          throw new Error(
+            "figmaDesignUrl must be a figma.com link, e.g. https://www.figma.com/design/<key>/<name>?node-id=1-2"
+          );
+        }
+        data.figmaDesignUrl = trimmed;
       }
 
       return data;

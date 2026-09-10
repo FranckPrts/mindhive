@@ -21,6 +21,7 @@ const CREATE_VARS = `
   $body: JSON
   $evidence: JSON
   $reporterId: ID!
+  $figmaDesignUrl: String
 `;
 
 const CREATE_FIELDS = `
@@ -31,6 +32,7 @@ const CREATE_FIELDS = `
   body: $body
   evidence: $evidence
   reporter: { connect: { id: $reporterId } }
+  figmaDesignUrl: $figmaDesignUrl
 `;
 
 const CREATED = `

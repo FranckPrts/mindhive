@@ -47,6 +47,7 @@ export const GET_TICKET = gql`
       ${TICKET_SUMMARY}
       body
       evidence
+      figmaDesignUrl
       figmaNodeId
       notionPageId
       updatedAt

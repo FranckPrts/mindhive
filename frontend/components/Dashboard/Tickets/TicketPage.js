@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { GET_TICKET, GET_TICKETS } from "../../Queries/Ticket";
 import { SET_TICKET_STATUS } from "../../Mutations/Ticket";
 import { getSurface } from "../../../lib/surfaces";
+import { describeFigmaUrl } from "../../../lib/figmaUrl";
 import BeehiveLoading from "../../DesignSystem/BeehiveLoading";
 import Button from "../../DesignSystem/Button";
 import CopyButton from "../../DesignSystem/CopyButton";
@@ -106,6 +107,16 @@ export default function TicketPage({ id }) {
             <dt>Code</dt>
             <dd>
               <Mono>{surface.root}</Mono>
+            </dd>
+          </Fact>
+        )}
+        {ticket.figmaDesignUrl && (
+          <Fact>
+            <dt>Intended design</dt>
+            <dd>
+              <a href={ticket.figmaDesignUrl} target="_blank" rel="noopener noreferrer">
+                {describeFigmaUrl(ticket.figmaDesignUrl) ?? "Open in Figma"}
+              </a>
             </dd>
           </Fact>
         )}

@@ -36,6 +36,7 @@ const PROP = {
   filed: "Filed",
   mindhiveId: "MindHive ID",
   link: "Link",
+  design: "Design",
 } as const;
 
 /** Keystone enum -> the option names in the Notion select. */
@@ -68,6 +69,7 @@ export const MIRRORED_FIELDS = [
   "kind",
   "priority",
   "surface",
+  "figmaDesignUrl",
 ] as const;
 
 let client: Client | null = null;
@@ -137,6 +139,9 @@ function propertiesFor(ticket: any) {
     },
     [PROP.mindhiveId]: { rich_text: text(ticket.id) },
     ...(link ? { [PROP.link]: { url: link } } : {}),
+    // Where the intended design lives, when the reporter supplied it. A
+    // url property accepts null cleanly, so no conditional spread needed.
+    [PROP.design]: { url: ticket.figmaDesignUrl || null },
   };
 }
 
@@ -166,6 +171,7 @@ async function loadTicket(context: any, id: string) {
     where: { id },
     query: `
       id title surface kind status priority body createdAt notionPageId
+      figmaDesignUrl
       reporter { username }
     `,
   });

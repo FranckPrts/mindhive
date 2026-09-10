@@ -38,7 +38,8 @@ async function ticketForAgent(
   const ticket = await context.sudo().query.Ticket.findOne({
     where: { id: String(id) },
     query: `
-      id title surface kind status priority body evidence figmaNodeId
+      id title surface kind status priority body evidence
+      figmaDesignUrl figmaNodeId
       createdAt updatedAt resolvedAt notionPageId
       reporter { username }
       screenshot { id }
@@ -56,6 +57,7 @@ async function ticketForAgent(
     priority: ticket.priority,
     description: ticket.body?.text ?? null,
     evidence: ticket.evidence ?? null,
+    figmaDesignUrl: ticket.figmaDesignUrl ?? null,
     figmaNodeId: ticket.figmaNodeId ?? null,
     reporter: ticket.reporter?.username ?? null,
     createdAt: ticket.createdAt ?? null,

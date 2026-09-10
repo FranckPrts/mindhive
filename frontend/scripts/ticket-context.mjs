@@ -58,7 +58,7 @@ const QUERY = `
   query($secret: String!, $id: ID!) {
     ticketForAgent(secret: $secret, id: $id) {
       id title surface kind status priority description evidence
-      figmaNodeId reporter createdAt resolvedAt hasScreenshot
+      figmaDesignUrl figmaNodeId reporter createdAt resolvedAt hasScreenshot
     }
   }
 `;
@@ -134,7 +134,8 @@ say("surface", `${ticket.surface}${surface ? `  — ${surface.label}` : "  (NOT 
 say("reporter", ticket.reporter);
 say("filed", ticket.createdAt);
 say("resolved", ticket.resolvedAt);
-say("figma", ticket.figmaNodeId);
+say("design", ticket.figmaDesignUrl);
+say("captured", ticket.figmaNodeId);
 say("screenshot", ticket.hasScreenshot ? `yes — view at /dashboard/tickets/${ticket.id}` : null);
 
 if (ticket.description) {

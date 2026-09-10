@@ -371,6 +371,7 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         priority: String
         description: String
         evidence: JSON
+        figmaDesignUrl: String
         figmaNodeId: String
         reporter: String
         createdAt: String
