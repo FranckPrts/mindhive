@@ -8,7 +8,7 @@ const StyledClass = styled.div`
   min-width: 0;
   /* clip avoids the overflow-x:hidden → overflow-y:auto pairing that breaks
      position:sticky descendants against the dashboard scroll wrapper */
-  overflow-x: clip;
+  // overflow-x: clip;
   box-sizing: border-box;
 
   &.isProjectsFullscreen,

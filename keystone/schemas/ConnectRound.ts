@@ -52,6 +52,7 @@ export const ConnectRound = list({
     // JSON bag. Known shape:
     // {
     //   sponsorFormsVisible?: boolean,
+    //   preferenceWindowTimeZone?: IANA zone string (default America/Los_Angeles),
     //   schedule?: {
     //     introductionAt?: "YYYY-MM-DD",
     //     matchingStartAt?: "YYYY-MM-DD",
@@ -61,7 +62,7 @@ export const ConnectRound = list({
     //     sponsorIntroAt?: "YYYY-MM-DD",
     //   }
     // }
-    // Preference window remains openAt / closeAt (not duplicated here).
+    // Preference window remains openAt / closeAt (UTC instants; not duplicated here).
     settings: json(),
 
     opportunities: relationship({

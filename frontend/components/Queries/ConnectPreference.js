@@ -42,6 +42,7 @@ export const GET_PARTICIPATE_VIEW = gql`
       status
       openAt
       closeAt
+      settings
       classNetwork {
         id
         title
