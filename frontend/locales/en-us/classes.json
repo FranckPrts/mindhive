@@ -1464,8 +1464,8 @@
 					"mutualClassmates": "Mutual classmates",
 					"oneWayClassmates": "One-way classmates",
 					"receivedClassmates": "Received classmates",
-					"preferredClassmates": "Preferred classmates",
-					"rankedOpportunities": "Ranked opportunities",
+					"preferredClassmateRank": "Preferred classmate {{n}}",
+					"rankedOpportunityRank": "Ranked opportunity {{n}}",
 					"additionalNotes": "Additional notes",
 					"matchedOpportunity": "Matched opportunity",
 					"submittedAt": "Submitted at"
