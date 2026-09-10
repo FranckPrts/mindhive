@@ -440,12 +440,16 @@ export default function TicketOverlay() {
    fight for the same corner. Both are fixed to the bottom right. */
 
 const LauncherButton = styled.button`
+  /* Top right, clear of the Help Center launcher in the opposite corner. The
+     app header is not fixed, so this stays put while the page scrolls under
+     it — which is what you want for a control that files a ticket about
+     whatever you are currently looking at. */
   position: fixed;
   right: 24px;
-  bottom: 96px;
+  top: 20px;
   z-index: 9998;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 100px;
   border: none;
   cursor: pointer;
@@ -479,12 +483,13 @@ const Count = styled.span`
 `;
 
 const Panel = styled.div`
+  /* Drops from under the launcher rather than rising from the bottom. */
   position: fixed;
   right: 24px;
-  bottom: 156px;
+  top: 76px;
   z-index: 9999;
   width: min(420px, calc(100vw - 48px));
-  max-height: min(70vh, 720px);
+  max-height: min(calc(100vh - 100px), 720px);
   overflow-y: auto;
   padding: 20px;
   border-radius: 12px;
