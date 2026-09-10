@@ -11,6 +11,7 @@ import { CURRENT_USER_QUERY } from '../Queries/User';
 import { UPDATE_USER } from '../Mutations/User';
 import useTranslation from "next-translate/useTranslation";
 import Button from "../DesignSystem/Button";
+import { openTicketPanel } from "../../lib/ticketPanel";
 import {
   HelpButton,
   ActionsList,
@@ -105,6 +106,20 @@ export default function HelpCenter() {
         allowedRoles: ["ADMIN", "MENTOR", "SCIENTIST", "TEACHER", "SPONSOR"]
       },
       {
+        icon: '/assets/helpCenter/ticket.svg',
+        tooltip: t('helpCenter.fileTicket', {}, { default: 'File a ticket' }),
+        bgColor: theme.primaryCalyspo,
+        action: () => {
+          setIsOpen(false);
+          openTicketPanel();
+        },
+        // Every other action gates on a role NAME; this one gates on the
+        // capability flag, which is what the backend actually enforces on the
+        // Ticket list. `canView` is honoured by the filter below.
+        canView: (viewer) =>
+          !!viewer?.permissions?.some((permission) => permission?.canManageTickets),
+      },
+      {
         icon: '/assets/helpCenter/aichat.svg',
         tooltip: t('helpCenter.aiAssist'),
         bgColor: theme.primaryYellow,
@@ -120,6 +135,9 @@ export default function HelpCenter() {
       }
     ];
     return actions.filter(action => {
+      if (action.canView) {
+        return action.canView(user);
+      }
       if (action.allowedRoles) {
         return permissions.some(p => action.allowedRoles.includes(p));
       }

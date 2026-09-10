@@ -7,6 +7,7 @@ import { UserContext } from "./Authorized";
 import Button from "../DesignSystem/Button";
 import { surfaceForRoute } from "../../lib/surfaces";
 import { parseFigmaUrl, describeFigmaUrl } from "../../lib/figmaUrl";
+import { onOpenTicketPanel } from "../../lib/ticketPanel";
 import {
   CREATE_TICKET,
   CREATE_TICKET_WITH_SCREENSHOT,
@@ -147,6 +148,10 @@ export default function TicketOverlay() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onKeyDown]);
 
+  // The Help Center menu is now the visible way in; the chord above is the
+  // shortcut. Both land here.
+  useEffect(() => onOpenTicketPanel(() => setOpen(true)), []);
+
   // A ticket belongs to the page it was filed from, so close on navigation
   // rather than carrying a half-written one to a different surface.
   useEffect(() => {
@@ -247,21 +252,6 @@ export default function TicketOverlay() {
 
   return (
     <>
-      <LauncherButton
-        type="button"
-        data-mh-ticket-ui="true"
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
-        aria-expanded={open}
-        aria-label={
-          openTickets.length
-            ? `Tickets (${openTickets.length} open here). ${TOGGLE_HINT}`
-            : `File a ticket. ${TOGGLE_HINT}`
-        }
-        title={`Tickets — ${TOGGLE_HINT}`}
-      >
-        <span aria-hidden="true">⚑</span>
-        {openTickets.length > 0 && <Count>{openTickets.length}</Count>}
-      </LauncherButton>
 
       {open && (
         <Panel data-mh-ticket-ui="true" role="dialog" aria-label="File a ticket">
@@ -271,6 +261,7 @@ export default function TicketOverlay() {
               <SurfaceName>{surface?.label ?? "Unregistered surface"}</SurfaceName>
               <SurfaceKey>{surfaceKey ?? router.pathname}</SurfaceKey>
             </div>
+            <Chord aria-hidden="true">{TOGGLE_HINT}</Chord>
             <CloseButton type="button" onClick={() => setOpen(false)} aria-label="Close">
               ×
             </CloseButton>
@@ -439,57 +430,17 @@ export default function TicketOverlay() {
 /* Sits above HelpCenter's launcher rather than beside it, so the two do not
    fight for the same corner. Both are fixed to the bottom right. */
 
-const LauncherButton = styled.button`
-  /* Top right, clear of the Help Center launcher in the opposite corner. The
-     app header is not fixed, so this stays put while the page scrolls under
-     it — which is what you want for a control that files a ticket about
-     whatever you are currently looking at. */
-  position: fixed;
-  right: 24px;
-  top: 20px;
-  z-index: 9998;
-  width: 44px;
-  height: 44px;
-  border-radius: 100px;
-  border: none;
-  cursor: pointer;
-  font-size: 20px;
-  background: var(--MH-Theme-Primary-Dark, #336f8a);
-  color: var(--MH-Theme-Neutrals-White, #ffffff);
-  box-shadow: var(--MH-Theme-Elevation-Medium, 2px 2px 8px rgba(0, 0, 0, 0.1));
-  transition: background-color 0.2s;
 
-  &:hover {
-    background: var(--MH-Theme-Tertiary-Dark, #0d3944);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--MH-Theme-Accent-Base, #f2be42);
-    outline-offset: 2px;
-  }
-`;
-
-const Count = styled.span`
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 100px;
-  background: var(--MH-Theme-Accent-Base, #f2be42);
-  color: var(--MH-Theme-Neutrals-Black, #171717);
-  font: var(--MH-Type-Label-Small);
-  line-height: 20px;
-`;
 
 const Panel = styled.div`
-  /* Drops from under the launcher rather than rising from the bottom. */
+  /* Opens beside the Help Center launcher, which is now the way in — the
+     speed-dial actions expand upward from the same corner. */
   position: fixed;
   right: 24px;
-  top: 76px;
+  bottom: 96px;
   z-index: 9999;
   width: min(420px, calc(100vw - 48px));
-  max-height: min(calc(100vh - 100px), 720px);
+  max-height: min(calc(100vh - 140px), 720px);
   overflow-y: auto;
   padding: 20px;
   border-radius: 12px;
@@ -579,6 +530,17 @@ const Field = styled.div`
 const Optional = styled.span`
   font: var(--MH-Type-Body-Small);
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
+`;
+
+const Chord = styled.span`
+  align-self: flex-start;
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--MH-Theme-Neutrals-Lighter, #f3f3f3);
+  color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
+  font: var(--MH-Type-Label-Small);
+  white-space: nowrap;
 `;
 
 const Hint = styled.p`
