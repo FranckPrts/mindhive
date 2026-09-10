@@ -280,7 +280,16 @@ export default function TicketOverlay() {
               <Eyebrow>Already open here</Eyebrow>
               {openTickets.map((ticket) => (
                 <ExistingRow key={ticket.id}>
-                  <span>{ticket.title}</span>
+                  {/* New tab, deliberately: you are part-way through filing on
+                      this page, and navigating away would lose the form. */}
+                  <ExistingLink
+                    href={`/dashboard/tickets/${ticket.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Open "${ticket.title}" in a new tab`}
+                  >
+                    {ticket.title}
+                  </ExistingLink>
                   <RowActions>
                     <Tag>{ticket.status.replace("_", " ").toLowerCase()}</Tag>
                     <LinkButton type="button" onClick={() => markShipped(ticket.id)}>
@@ -530,6 +539,22 @@ const Field = styled.div`
 const Optional = styled.span`
   font: var(--MH-Type-Body-Small);
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
+`;
+
+const ExistingLink = styled.a`
+  color: var(--MH-Theme-Primary-Dark, #336f8a);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+
+  &:hover {
+    color: var(--MH-Theme-Tertiary-Dark, #0d3944);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--MH-Theme-Accent-Base, #f2be42);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 `;
 
 const Chord = styled.span`
