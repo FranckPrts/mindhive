@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@apollo/client";
+import clsx from "clsx";
 import useTranslation from "next-translate/useTranslation";
 import styled from "styled-components";
 
+import Button from "../../../../DesignSystem/Button";
 import Chip from "../../../../DesignSystem/Chip";
-import InfoPopover from "../../../../DesignSystem/InfoPopover";
 import { ROUND_MATCH_VIEW } from "../../../../Queries/ConnectMatch";
 import {
   buildClassmateListsByStudent,
@@ -82,6 +83,46 @@ const MemberRow = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+`;
+
+const ProjectCard = styled(ItemCard)`
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+
+  &.isDetailsOpen {
+    grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.95fr);
+    column-gap: 20px;
+  }
+
+  @media (max-width: 800px) {
+    &.isDetailsOpen {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+`;
+
+const ProjectCardMain = styled.div`
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+`;
+
+const ProjectCardSide = styled.aside`
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding-left: 16px;
+  border-left: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
+  max-height: 480px;
+  overflow-y: auto;
+
+  @media (max-width: 800px) {
+    padding-left: 0;
+    padding-top: 12px;
+    border-left: none;
+    border-top: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
+    max-height: none;
+  }
 `;
 
 const EmptyNote = styled.p`
@@ -197,7 +238,7 @@ function formatOrdinalRank(rank, t) {
   );
 }
 
-function OpportunityPreferencePopover({ opportunity, preferences, t }) {
+function OpportunityPreferenceDetails({ opportunity, preferences, t }) {
   const stats = useMemo(
     () =>
       buildOpportunityPreferenceStats(opportunity.id, preferences, {
@@ -212,7 +253,7 @@ function OpportunityPreferencePopover({ opportunity, preferences, t }) {
     [stats.countsByRank],
   );
 
-  const content = (
+  return (
     <PopoverBody>
       <PopoverTitle>
         {t(
@@ -221,16 +262,6 @@ function OpportunityPreferencePopover({ opportunity, preferences, t }) {
           { default: "Who ranked this opportunity" },
         )}
       </PopoverTitle>
-      <Meta>
-        {t(
-          "opportunities.matchingRound.matching.preferencePopoverIntro",
-          {},
-          {
-            default:
-              "Submitted ballots only. Rank 1 is a student’s first choice. Chips show how many students assigned each rank; the list is every student who included this opportunity, highest rank first.",
-          },
-        )}
-      </Meta>
       <PopoverSectionLabel>
         {t(
           "opportunities.matchingRound.matching.preferenceTotal",
@@ -283,6 +314,7 @@ function OpportunityPreferencePopover({ opportunity, preferences, t }) {
               <PopoverListItem key={`${entry.student.id}-${entry.rank}`}>
                 <Chip
                   variant="static"
+                  tone="neutral"
                   label={formatOrdinalRank(entry.rank, t)}
                 />
                 <span>{entry.name}</span>
@@ -304,20 +336,6 @@ function OpportunityPreferencePopover({ opportunity, preferences, t }) {
       )}
     </PopoverBody>
   );
-
-  return (
-    <InfoPopover
-      content={content}
-      side="bottom"
-      align="end"
-      width={400}
-      ariaLabel={t(
-        "opportunities.matchingRound.matching.preferencePopoverAria",
-        { title: opportunity.title || "" },
-        { default: "Who ranked {{title}}" },
-      )}
-    />
-  );
 }
 
 function ProjectFirstOpportunityCard({
@@ -326,6 +344,7 @@ function ProjectFirstOpportunityCard({
   preferences,
   t,
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const capacity = opportunity.studentCapacity || 1;
   const used = matches.length;
   const peopleLine = [
@@ -337,59 +356,88 @@ function ProjectFirstOpportunityCard({
     .map(displayName)
     .filter(Boolean);
   const uniquePeople = [...new Set(peopleLine)];
+  const toggleLabel = detailsOpen
+    ? t(
+        "opportunities.matchingRound.matching.preferencePanelHide",
+        {},
+        { default: "Hide rankings" },
+      )
+    : t(
+        "opportunities.matchingRound.matching.preferencePanelShow",
+        {},
+        { default: "Who ranked this" },
+      );
 
   return (
-    <ItemCard>
-      <ItemHeader>
-        <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
-          <ItemTitle>{opportunity.title || "—"}</ItemTitle>
-          <Meta>
-            {t(
-              "opportunities.matchingRound.matching.capacity",
-              { used, capacity },
-              { default: "{{used}} / {{capacity}} placed" },
-            )}
-            {opportunity.organization?.name
-              ? ` · ${opportunity.organization.name}`
-              : ""}
-          </Meta>
-          {uniquePeople.length > 0 ? (
+    <ProjectCard className={clsx({ isDetailsOpen: detailsOpen })}>
+      <ProjectCardMain>
+        <ItemHeader>
+          <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+            <ItemTitle>{opportunity.title || "—"}</ItemTitle>
             <Meta>
               {t(
-                "opportunities.matchingRound.matching.mentorsLabel",
-                { names: uniquePeople.join(", ") },
-                { default: "Mentors / sponsors: {{names}}" },
+                "opportunities.matchingRound.matching.capacity",
+                { used, capacity },
+                { default: "{{used}} / {{capacity}} placed" },
               )}
+              {opportunity.organization?.name
+                ? ` · ${opportunity.organization.name}`
+                : ""}
             </Meta>
-          ) : null}
-        </div>
-        <OpportunityPreferencePopover
-          opportunity={opportunity}
-          preferences={preferences}
-          t={t}
-        />
-      </ItemHeader>
-      {matches.length > 0 ? (
-        <MemberRow>
-          {matches.map((match) => (
-            <Chip
-              key={match.id}
-              variant="static"
-              tone="primary"
-              label={displayName(match.student)}
-            />
-          ))}
-        </MemberRow>
-      ) : (
-        <EmptyNote>
-          {t(
-            "opportunities.matchingRound.matching.noMatchesYet",
-            {},
-            { default: "No matches yet." },
-          )}
-        </EmptyNote>
-      )}
-    </ItemCard>
+            {uniquePeople.length > 0 ? (
+              <Meta>
+                {t(
+                  "opportunities.matchingRound.matching.mentorsLabel",
+                  { names: uniquePeople.join(", ") },
+                  { default: "Mentors / sponsors: {{names}}" },
+                )}
+              </Meta>
+            ) : null}
+          </div>
+          <Button
+            variant="text"
+            aria-expanded={detailsOpen}
+            aria-label={t(
+              "opportunities.matchingRound.matching.preferencePopoverAria",
+              { title: opportunity.title || "" },
+              { default: "Who ranked {{title}}" },
+            )}
+            onClick={() => setDetailsOpen((open) => !open)}
+          >
+            {toggleLabel}
+          </Button>
+        </ItemHeader>
+        {matches.length > 0 ? (
+          <MemberRow>
+            {matches.map((match) => (
+              <Chip
+                key={match.id}
+                variant="static"
+                tone="neutral"
+                label={displayName(match.student)}
+              />
+            ))}
+          </MemberRow>
+        ) : (
+          <EmptyNote>
+            {t(
+              "opportunities.matchingRound.matching.noMatchesYet",
+              {},
+              { default: "No matches yet." },
+            )}
+          </EmptyNote>
+        )}
+      </ProjectCardMain>
+      {detailsOpen ? (
+        <ProjectCardSide>
+          <OpportunityPreferenceDetails
+            opportunity={opportunity}
+            preferences={preferences}
+            t={t}
+          />
+        </ProjectCardSide>
+      ) : null}
+    </ProjectCard>
   );
 }
 

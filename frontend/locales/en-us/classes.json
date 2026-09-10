@@ -1377,6 +1377,8 @@
 				"teamGroupSizeOver": "{{count}} students for a team of {{teamSize}}",
 				"teamGroupSizeUnder": "Only {{count}} for a team of {{teamSize}}",
 				"preferencePopoverAria": "Who ranked {{title}}",
+				"preferencePanelShow": "Who ranked this",
+				"preferencePanelHide": "Hide rankings",
 				"preferencePopoverTitle": "Who ranked this opportunity",
 				"preferencePopoverIntro": "Submitted ballots only. Rank 1 is a student’s first choice. Chips show how many students assigned each rank; the list is every student who included this opportunity, highest rank first.",
 				"preferenceTotal": "{{count}} student(s) included this on a submitted ballot",
