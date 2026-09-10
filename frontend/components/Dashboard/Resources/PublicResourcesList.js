@@ -1,11 +1,23 @@
 import { useQuery } from "@apollo/client";
 import moment from "moment";
-import Link from "next/link";
-import { Icon } from "semantic-ui-react";
-import Tooltip from "../../DesignSystem/Tooltip";
+import { useRouter } from "next/router";
 import useTranslation from "next-translate/useTranslation";
 import { GET_PUBLIC_RESOURCES } from "../../Queries/Resource";
 import { stripHtml } from "../../Proposal/Card/Forms/utils";
+
+import Button from "../../DesignSystem/Button";
+import Chip from "../../DesignSystem/Chip";
+import ResourceCard from "./ResourceCard";
+
+function formatResourceDates(resource, t) {
+  const created = `${t("boardManagement.created", {}, { default: "Created" })}: ${moment(
+    resource.createdAt
+  ).format("MMMM D, YYYY")}`;
+  if (!resource.updatedAt) return created;
+  return `${created} · ${t("boardManagement.updated", {}, { default: "Updated" })}: ${moment(
+    resource.updatedAt
+  ).format("MMMM D, YYYY")}`;
+}
 
 export default function PublicResourcesList({
   query,
@@ -16,9 +28,9 @@ export default function PublicResourcesList({
 }) {
   const { data, error, loading } = useQuery(GET_PUBLIC_RESOURCES);
   const { t } = useTranslation("classes");
-  let resources = data?.resources ? [...data.resources] : []; // Create mutable copy
+  const router = useRouter();
+  let resources = data?.resources ? [...data.resources] : [];
 
-  // Client-side search and filter
   if (searchTerm) {
     resources = resources.filter(
       (r) =>
@@ -26,57 +38,74 @@ export default function PublicResourcesList({
         r.description?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }
-  if (filter === "recent") {
-    resources = [...resources].sort(
-      (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
-    ); // Sort on a new copy
-  }
+  resources = [...resources].sort((a, b) => {
+    const aTime = new Date(a.updatedAt || a.createdAt).getTime();
+    const bTime = new Date(b.updatedAt || b.createdAt).getTime();
+    return bTime - aTime;
+  });
 
   if (loading) return <p>{t("boardManagement.loadingDotdotdot")}</p>;
   if (error) return <p>{t("boardManagement.errLoadingPublicResource")}</p>;
 
+  if (resources.length === 0) {
+    return (
+      <p
+        className="MH-Type-Body-Base"
+        style={{ color: "var(--MH-Theme-Neutrals-Dark, #6a6a6a)" }}
+      >
+        {searchTerm || filter !== "all"
+          ? t("boardManagement.emptySearchResults", {}, {
+              default: "No resources match your search or filter.",
+            })
+          : t("boardManagement.emptyPublicResources", {}, {
+              default: "No public resources are available yet.",
+            })}
+      </p>
+    );
+  }
+
   return (
     <div className="board">
       {resources.map((resource) => (
-        <div key={resource.id} className="card">
-          <h3 className="card-title">{stripHtml(resource.title)}</h3>
-          <p className="card-meta">{t("boardManagement.author")}: {resource.author?.username}</p>
-          <p className="card-meta">
-          {t("boardManagement.created")} {moment(resource.createdAt).format("MMMM D, YYYY")}
-          </p>
-          {resource.updatedAt && (
-            <p className="card-meta">
-              {t("boardManagement.updated")}: {moment(resource.updatedAt).format("MMMM D, YYYY")}
-            </p>
-          )}
-          {resource.collaborators?.length > 0 && (
-            <div className="card-collaborators">
-              <strong>{t("boardManagement.collaborators")}:</strong>{" "}
-              {resource.collaborators.map((c) => (
-                <span key={c.id}>{c.username}</span>
-              ))}
-            </div>
-          )}
-          <div className="card-actions">
-            <Tooltip content={t("boardManagement.preview")}>
-              <Icon
-                name="eye"
-                className="action-icon preview"
-                onClick={() => onPreview(resource.id)}
-              />
-            </Tooltip>
-            <Tooltip content={t("boardManagement.copy")}>
-              <Link
-                href={{
-                  pathname: "/dashboard/resources/copy",
-                  query: { id: resource.id },
-                }}
+        <ResourceCard
+          key={resource.id}
+          typeLabel={t("boardManagement.publicChip", {}, { default: "Public" })}
+          title={stripHtml(resource.title)}
+          subtitle={`${t("boardManagement.author", {}, { default: "Author" })}: ${
+            resource.author?.username || t("boardManagement.notAvailable")
+          }`}
+          description={formatResourceDates(resource, t)}
+          chips={
+            resource.collaborators?.length > 0
+              ? resource.collaborators.map((c) => (
+                  <Chip
+                    key={c.id}
+                    variant="static"
+                    tone="neutral"
+                    label={c.username}
+                  />
+                ))
+              : null
+          }
+          actions={
+            <>
+              <Button variant="text" onClick={() => onPreview(resource.id)}>
+                {t("boardManagement.preview")}
+              </Button>
+              <Button
+                variant="text"
+                onClick={() =>
+                  router.push({
+                    pathname: "/dashboard/resources/copy",
+                    query: { id: resource.id },
+                  })
+                }
               >
-                <Icon name="copy" className="action-icon copy" />
-              </Link>
-            </Tooltip>
-          </div>
-        </div>
+                {t("boardManagement.copy")}
+              </Button>
+            </>
+          }
+        />
       ))}
     </div>
   );
