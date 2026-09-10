@@ -1529,6 +1529,7 @@
 			},
 			"title": "Matching round",
 			"titleRequired": "Title is required.",
+			"settingsUnsavedCloseHint": "Closing discards unsaved changes.",
 			"unsavedChanges": "Unsaved changes",
 			"unsavedChangesConfirm": "You have unsaved changes. Leave without saving?"
 		},
