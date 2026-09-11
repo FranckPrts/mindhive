@@ -178,6 +178,7 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
           resourceId: ID!
           templateCardIds: [ID!]!
           classId: ID!
+          templateBoardId: ID
         ): Resource
         applyTemplateBoardChanges(
           templateBoardId: ID!
@@ -362,6 +363,8 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         showInFeedbackCenter: Boolean
         statusTarget: String
         sectionId: ID
+        # Link this existing action card instead of creating a new one.
+        attachToCardId: ID
       }
       input UpdateTemplateMilestoneInput {
         id: ID!

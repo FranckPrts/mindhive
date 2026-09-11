@@ -183,6 +183,7 @@ export const GET_USER_CLASSES = gql`
           }
           templateProposal {
             id
+            title
           }
           classTemplateBoards {
             id
@@ -203,6 +204,7 @@ export const GET_USER_CLASSES = gql`
           }
           templateProposal {
             id
+            title
           }
           classTemplateBoards {
             id

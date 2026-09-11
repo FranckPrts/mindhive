@@ -265,6 +265,21 @@ export default function MatchingRoundStudentAssessmentSetup({
 
   return (
     <SetupShell className="matchingRoundStudentAssessmentSetup">
+      {wizardOpen ? (
+        <TeacherFormWizard
+          open
+          presentation="page"
+          onClose={() => {
+            setWizardOpen(false);
+            setWizardDefinitionId(null);
+          }}
+          classId={classId}
+          mode="student_assessment"
+          definitionId={wizardDefinitionId}
+          onSaved={handleWizardSaved}
+        />
+      ) : (
+        <>
       {beforeOpen && openAtLabel ? (
         <MessageCard
           variant="information"
@@ -394,23 +409,13 @@ export default function MatchingRoundStudentAssessmentSetup({
         ) : null}
       </AssessmentCard>
 
-      <TeacherFormWizard
-        open={wizardOpen}
-        onClose={() => {
-          setWizardOpen(false);
-          setWizardDefinitionId(null);
-        }}
-        classId={classId}
-        mode="student_assessment"
-        definitionId={wizardDefinitionId}
-        onSaved={handleWizardSaved}
-      />
-
       <MatchingRoundFormPreviewModal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         formDefinitionIds={linkedForm?.id ? [linkedForm.id] : []}
       />
+        </>
+      )}
     </SetupShell>
   );
 }

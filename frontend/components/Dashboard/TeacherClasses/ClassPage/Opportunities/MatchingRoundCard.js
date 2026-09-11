@@ -2650,6 +2650,65 @@ function MatchingRoundEditor({
 
     return (
       <div className="classTabMatchingRoundPanel">
+        {formWizardOpen ? (
+          <TeacherFormWizard
+            open
+            presentation="page"
+            onClose={() => {
+              setFormWizardOpen(false);
+              setFormWizardDefinitionId(null);
+            }}
+            classId={myclass?.id}
+            definitionId={formWizardDefinitionId}
+            onSaved={async (saved, { didPublish } = {}) => {
+              if (!saved?.id) return;
+              try {
+                await refetchFormLists();
+              } catch {
+                // Selection still proceeds; lists may refresh on next load.
+              }
+              setLibrarySelectedId(saved.id);
+              // Only attach when the teacher explicitly published from the
+              // wizard. Save as draft must never add (or keep adding) a form
+              // based solely on returned status.
+              if (didPublish) {
+                const nextIds = selectedFormDefinitionIds.includes(saved.id)
+                  ? selectedFormDefinitionIds
+                  : [...selectedFormDefinitionIds, saved.id];
+                await persistFormDefinitionSelection(nextIds);
+                setFormWizardBanner(
+                  t(
+                    "opportunities.matchingRound.formWizard.publishedAndAdded",
+                    {},
+                    { default: "Published and added to this round." },
+                  ),
+                );
+                return;
+              }
+              // If a form already in this round was demoted to draft, detach it.
+              if (
+                saved.status === "draft" &&
+                selectedFormDefinitionIds.includes(saved.id)
+              ) {
+                await persistFormDefinitionSelection(
+                  selectedFormDefinitionIds.filter((id) => id !== saved.id),
+                );
+              }
+              setFormWizardBanner(
+                t(
+                  "opportunities.matchingRound.formWizard.savedAsDraft",
+                  {},
+                  {
+                    default:
+                      "Saved as draft (not visible to sponsors yet).",
+                  },
+                ),
+              );
+            }}
+          />
+        ) : null}
+        {formWizardOpen ? null : (
+          <>
         {formWizardBanner ? (
           <MessageCard
             variant="success"
@@ -3040,60 +3099,6 @@ function MatchingRoundEditor({
           formDefinitionIds={formPreviewIds}
           formLabelsById={formLabelsById}
         />
-        <TeacherFormWizard
-          open={formWizardOpen}
-          onClose={() => {
-            setFormWizardOpen(false);
-            setFormWizardDefinitionId(null);
-          }}
-          classId={myclass?.id}
-          definitionId={formWizardDefinitionId}
-          onSaved={async (saved, { didPublish } = {}) => {
-            if (!saved?.id) return;
-            try {
-              await refetchFormLists();
-            } catch {
-              // Selection still proceeds; lists may refresh on next load.
-            }
-            setLibrarySelectedId(saved.id);
-            // Only attach when the teacher explicitly published from the
-            // wizard. Save as draft must never add (or keep adding) a form
-            // based solely on returned status.
-            if (didPublish) {
-              const nextIds = selectedFormDefinitionIds.includes(saved.id)
-                ? selectedFormDefinitionIds
-                : [...selectedFormDefinitionIds, saved.id];
-              await persistFormDefinitionSelection(nextIds);
-              setFormWizardBanner(
-                t(
-                  "opportunities.matchingRound.formWizard.publishedAndAdded",
-                  {},
-                  { default: "Published and added to this round." },
-                ),
-              );
-              return;
-            }
-            // If a form already in this round was demoted to draft, detach it.
-            if (
-              saved.status === "draft" &&
-              selectedFormDefinitionIds.includes(saved.id)
-            ) {
-              await persistFormDefinitionSelection(
-                selectedFormDefinitionIds.filter((id) => id !== saved.id),
-              );
-            }
-            setFormWizardBanner(
-              t(
-                "opportunities.matchingRound.formWizard.savedAsDraft",
-                {},
-                {
-                  default:
-                    "Saved as draft (not visible to sponsors yet).",
-                },
-              ),
-            );
-          }}
-        />
         <Modal
           open={Boolean(publishAddForm)}
           onClose={closePublishAddModal}
@@ -3157,6 +3162,8 @@ function MatchingRoundEditor({
             </p>
           ) : null}
         </Modal>
+          </>
+        )}
       </div>
     );
   };

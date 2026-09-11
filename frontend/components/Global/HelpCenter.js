@@ -107,7 +107,8 @@ export default function HelpCenter() {
         tooltip: t('helpCenter.reportIssue'),
         bgColor: theme.primaryRed,
         action: () => openModal(t('helpCenter.reportIssue'), 'report'),
-        allowedRoles: ["ADMIN", "MENTOR", "SCIENTIST", "TEACHER", "SPONSOR"]
+        // visible to all
+        // allowedRoles: ["ADMIN", "MENTOR", "SCIENTIST", "TEACHER", "SPONSOR"]
       },
       {
         icon: '/assets/helpCenter/ticket.svg',
@@ -217,27 +218,31 @@ export default function HelpCenter() {
               </div>
             </div>
             
-            <div className="report-item">
-                <div className="report-icon">🧱</div>
-                <div className="report-details">
-                <div>
-                    <a href="https://mindhive.notion.site/18bd80abf4c480749952e3c0498fab29?pvs=105" target="_blank">
-                    <Button variant="filled">
-                        {t("helpCenter.fillRequestForm")}
-                    </Button>
-                    </a>
+            {user?.permissions?.some(p => ["ADMIN", "MENTOR", "SCIENTIST", "TEACHER", "SPONSOR"].includes(p?.name)) && (
+              <>
+                <div className="report-item">
+                    <div className="report-icon">🧱</div>
+                    <div className="report-details">
+                    <div>
+                        <a href="https://mindhive.notion.site/18bd80abf4c480749952e3c0498fab29?pvs=105" target="_blank">
+                        <Button variant="filled">
+                            {t("helpCenter.fillRequestForm")}
+                        </Button>
+                        </a>
+                    </div>
+                    </div>
                 </div>
+                <div className="report-item">
+                  <div className="report-icon">📮</div>
+                  <div className="report-details">
+                    <h4>{t('helpCenter.urgentMattersEmail')}</h4>
+                    <p>
+                        <a href="mailto:support.mindhive@nyu.edu">support.mindhive@nyu.edu</a><br />
+                    </p>
+                  </div>
                 </div>
-            </div>
-            <div className="report-item">
-              <div className="report-icon">📮</div>
-              <div className="report-details">
-                <h4>{t('helpCenter.urgentMattersEmail')}</h4>
-                <p>
-                    <a href="mailto:support.mindhive@nyu.edu">support.mindhive@nyu.edu</a><br />
-                </p>
-              </div>
-            </div>
+              </>
+            )}
           </Support>
         );
       case 'aiassist':

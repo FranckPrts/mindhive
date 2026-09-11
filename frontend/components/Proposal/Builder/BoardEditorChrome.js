@@ -171,9 +171,9 @@ export default function BoardEditorChrome({
               <h1 className="boardEditorChromeTitle">{displayTitle}</h1>
               {isCardMode && cardChrome?.typeLabel ? (
                 <Chip
-                  className="boardEditorChromeTypeBadge"
                   label={cardChrome.typeLabel}
-                  style={{ cursor: "default", pointerEvents: "none", fontSize: 12 }}
+                  variant="static"
+                  tone="neutral"
                 />
               ) : null}
             </div>
@@ -244,9 +244,10 @@ export default function BoardEditorChrome({
             <Button
               variant="filled"
               onClick={onCardSave}
-              disabled={cardChrome.saving}
+              disabled={cardChrome.saving || cardChrome.saveDisabled}
             >
-              {tClasses("board.save", {}, { default: "Save" })}
+              {cardChrome.saveLabel ||
+                tClasses("board.save", {}, { default: "Save" })}
             </Button>
           </>
         ) : null}

@@ -9,3 +9,4 @@ pydantic/.env
 # ...but share project commands with the team; only local settings stay out.
 !.claude/commands/
 
+frontend/public/four in a row original codebase/*
