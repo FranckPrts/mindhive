@@ -8,6 +8,23 @@ export const StyledResource = styled.div`
   box-sizing: border-box;
   margin: 0 auto;
   position: relative;
+  
+  .headerEdit {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 900px;
+    border: 1px solid var(--MH-Theme-Neutrals-Light, #d1d1d1);
+    border-radius: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 16px 24px;
+    background: var(--MH-Theme-Neutrals-White, #ffffff);
+  }
 
   h1 {
     font: var(--MH-Type-Heading-Base);

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@apollo/client";
 import moment from "moment";
 import { useRouter } from "next/router";
@@ -8,6 +9,7 @@ import { stripHtml } from "../../Proposal/Card/Forms/utils";
 import Button from "../../DesignSystem/Button";
 import Chip from "../../DesignSystem/Chip";
 import ResourceCard from "./ResourceCard";
+import LinkResourceToProjectCardModal from "./LinkResourceToProjectCardModal";
 
 function formatResourceDates(resource, t) {
   const created = `${t("boardManagement.created", {}, { default: "Created" })}: ${moment(
@@ -29,7 +31,13 @@ export default function PublicResourcesList({
   const { data, error, loading } = useQuery(GET_PUBLIC_RESOURCES);
   const { t } = useTranslation("classes");
   const router = useRouter();
+  const [linkResource, setLinkResource] = useState(null);
   let resources = data?.resources ? [...data.resources] : [];
+
+  const permissionNames = user?.permissions?.map((p) => p?.name) || [];
+  const canLinkToProjectCard = permissionNames.some((name) =>
+    ["TEACHER", "MENTOR", "ADMIN"].includes(name)
+  );
 
   if (searchTerm) {
     resources = resources.filter(
@@ -65,48 +73,68 @@ export default function PublicResourcesList({
   }
 
   return (
-    <div className="board">
-      {resources.map((resource) => (
-        <ResourceCard
-          key={resource.id}
-          typeLabel={t("boardManagement.publicChip", {}, { default: "Public" })}
-          title={stripHtml(resource.title)}
-          subtitle={`${t("boardManagement.author", {}, { default: "Author" })}: ${
-            resource.author?.username || t("boardManagement.notAvailable")
-          }`}
-          description={formatResourceDates(resource, t)}
-          chips={
-            resource.collaborators?.length > 0
-              ? resource.collaborators.map((c) => (
-                  <Chip
-                    key={c.id}
-                    variant="static"
-                    tone="neutral"
-                    label={c.username}
-                  />
-                ))
-              : null
-          }
-          actions={
-            <>
-              <Button variant="text" onClick={() => onPreview(resource.id)}>
-                {t("boardManagement.preview")}
-              </Button>
-              <Button
-                variant="text"
-                onClick={() =>
-                  router.push({
-                    pathname: "/dashboard/resources/copy",
-                    query: { id: resource.id },
-                  })
-                }
-              >
-                {t("boardManagement.copy")}
-              </Button>
-            </>
-          }
+    <>
+      <div className="board">
+        {resources.map((resource) => (
+          <ResourceCard
+            key={resource.id}
+            typeLabel={t("boardManagement.publicChip", {}, { default: "Public" })}
+            title={stripHtml(resource.title)}
+            subtitle={`${t("boardManagement.author", {}, { default: "Author" })}: ${
+              resource.author?.username || t("boardManagement.notAvailable")
+            }`}
+            description={formatResourceDates(resource, t)}
+            chips={
+              resource.collaborators?.length > 0
+                ? resource.collaborators.map((c) => (
+                    <Chip
+                      key={c.id}
+                      variant="static"
+                      tone="neutral"
+                      label={c.username}
+                    />
+                  ))
+                : null
+            }
+            actions={
+              <>
+                <Button variant="subtle" onClick={() => onPreview(resource.id)}>
+                  {t("boardManagement.preview")}
+                </Button>
+                <Button
+                  variant="subtle"
+                  onClick={() =>
+                    router.push({
+                      pathname: "/dashboard/resources/copy",
+                      query: { id: resource.id },
+                    })
+                  }
+                >
+                  {t("boardManagement.copy")}
+                </Button>
+                {canLinkToProjectCard && (
+                  <Button
+                    variant="subtle"
+                    onClick={() => setLinkResource(resource)}
+                  >
+                    {t("boardManagement.linkToProjectCard.button", {}, {
+                      default: "Link to card",
+                    })}
+                  </Button>
+                )}
+              </>
+            }
+          />
+        ))}
+      </div>
+      {linkResource && (
+        <LinkResourceToProjectCardModal
+          open
+          resource={linkResource}
+          user={user}
+          onClose={() => setLinkResource(null)}
         />
-      ))}
-    </div>
+      )}
+    </>
   );
 }
