@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import styled from "styled-components";
 
 import { TOOLS, COLORS, metrics, render, isMeaningful } from "../../../lib/annotate";
@@ -188,7 +189,15 @@ export default function ScreenshotAnnotator({
 
   const m = ready ? metrics(canvasRef.current.width) : null;
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  // Rendered into <body>, not where it is used, as DesignSystem/Modal is. On
+  // the ticket page the editor sits inside the dashboard's content column,
+  // whose stacking context is below the sticky side menu — and a z-index only
+  // competes within its own context, so however high this one was set, the
+  // menu was drawn over it. React events still bubble through the component
+  // tree as before; only the DOM position changes.
+  return createPortal(
     <Overlay
       ref={overlayRef}
       {...isolateFromPage}
@@ -307,7 +316,8 @@ export default function ScreenshotAnnotator({
           />
         </NoteBar>
       )}
-    </Overlay>
+    </Overlay>,
+    document.body
   );
 }
 
