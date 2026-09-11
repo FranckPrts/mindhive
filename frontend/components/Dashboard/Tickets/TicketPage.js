@@ -1,9 +1,11 @@
+import { useContext } from "react";
 import Link from "next/link";
 import { useQuery, useMutation } from "@apollo/client";
 import styled from "styled-components";
 
-import { GET_TICKET, GET_TICKETS } from "../../Queries/Ticket";
-import { SET_TICKET_STATUS } from "../../Mutations/Ticket";
+import { GET_TICKET, GET_TICKETS, GET_TICKET_ASSIGNEES } from "../../Queries/Ticket";
+import { SET_TICKET_STATUS, ASSIGN_TICKET, UNASSIGN_TICKET } from "../../Mutations/Ticket";
+import { UserContext } from "../../Global/Authorized";
 import { getSurface } from "../../../lib/surfaces";
 import { describeFigmaUrl } from "../../../lib/figmaUrl";
 import BeehiveLoading from "../../DesignSystem/BeehiveLoading";
@@ -36,16 +38,29 @@ const KIND_LABELS = {
   IDEA: "Idea",
 };
 
+/**
+ * Notion page URL from the id the mirror stores. `notion.so/<32 hex>` resolves
+ * to the page wherever it lives in the workspace, so there is no need to store
+ * the full URL — which Notion rewrites whenever the page title changes.
+ */
+function notionUrl(pageId) {
+  return pageId ? `https://www.notion.so/${pageId.replace(/-/g, "")}` : null;
+}
+
 function formatDate(value) {
   if (!value) return null;
   return new Date(value).toLocaleString();
 }
 
 export default function TicketPage({ id }) {
+  const { user } = useContext(UserContext);
   const { data, loading, error } = useQuery(GET_TICKET, { variables: { id } });
-  const [setStatus, { loading: saving }] = useMutation(SET_TICKET_STATUS, {
-    refetchQueries: [{ query: GET_TICKETS }],
-  });
+  const { data: assigneeData } = useQuery(GET_TICKET_ASSIGNEES);
+  const refetch = { refetchQueries: [{ query: GET_TICKETS }] };
+  const [setStatus, { loading: saving }] = useMutation(SET_TICKET_STATUS, refetch);
+  const [assign, { loading: assigning }] = useMutation(ASSIGN_TICKET, refetch);
+  const [unassign, { loading: unassigning }] = useMutation(UNASSIGN_TICKET, refetch);
+  const assignees = assigneeData?.profiles ?? [];
 
   if (loading && !data) return <BeehiveLoading />;
   if (error) return <Wrapper>Could not load this ticket: {error.message}</Wrapper>;
@@ -132,7 +147,9 @@ export default function TicketPage({ id }) {
           <Fact>
             <dt>Notion</dt>
             <dd>
-              <Mono>{ticket.notionPageId}</Mono>
+              <a href={notionUrl(ticket.notionPageId)} target="_blank" rel="noopener noreferrer">
+                Open the mirrored page ↗
+              </a>
             </dd>
           </Fact>
         )}
@@ -163,6 +180,55 @@ export default function TicketPage({ id }) {
           </Button>
         )}
       </StatusBar>
+
+      {/* Who is working on it. The point is to prevent two people fixing the
+          same thing — so the claim is one click, and taking over someone
+          else's ticket asks first rather than silently overwriting them. */}
+      <AssigneeBar>
+        <label htmlFor="mh-ticket-assignee">Working on it</label>
+        <select
+          id="mh-ticket-assignee"
+          value={ticket.assignee?.id ?? ""}
+          disabled={assigning || unassigning}
+          onChange={(event) => {
+            const next = event.target.value;
+            if (!next) {
+              unassign({ variables: { id: ticket.id } });
+              return;
+            }
+            const current = ticket.assignee;
+            if (current && current.id !== next && current.id !== user?.id) {
+              const taker = assignees.find((a) => a.id === next)?.username ?? "them";
+              // eslint-disable-next-line no-alert
+              if (!window.confirm(`${current.username} is on this. Reassign it to ${taker}?`)) {
+                return;
+              }
+            }
+            assign({ variables: { id: ticket.id, assigneeId: next } });
+          }}
+        >
+          <option value="">Nobody yet</option>
+          {assignees.map((person) => (
+            <option key={person.id} value={person.id}>
+              {person.id === user?.id ? `${person.username} (you)` : person.username}
+            </option>
+          ))}
+        </select>
+        {user?.id && ticket.assignee?.id !== user.id && !ticket.assignee && (
+          <Button
+            variant="outline"
+            disabled={assigning}
+            onClick={() => assign({ variables: { id: ticket.id, assigneeId: user.id } })}
+          >
+            I&apos;m taking this
+          </Button>
+        )}
+        {ticket.assignee && ticket.assignee.id !== user?.id && (
+          <Caption>
+            {ticket.assignee.username} has claimed this — check with them before starting.
+          </Caption>
+        )}
+      </AssigneeBar>
 
       {CLOSEABLE.includes(ticket.status) && (
         <Section>
@@ -322,6 +388,24 @@ const Trailer = styled.code`
   font-size: 13px;
   color: var(--MH-Theme-Neutrals-Black, #171717);
   word-break: break-all;
+`;
+
+const AssigneeBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 24px;
+
+  label {
+    font: var(--MH-Type-Label-Base);
+  }
+  select {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
+    font: var(--MH-Type-Body-Base);
+  }
 `;
 
 const Section = styled.section`

@@ -25,3 +25,35 @@ export function onOpenTicketPanel(handler) {
   window.addEventListener(OPEN_TICKET_PANEL, handler);
   return () => window.removeEventListener(OPEN_TICKET_PANEL, handler);
 }
+
+/*
+ * How many tickets are open on the current page — broadcast by the overlay,
+ * shown by the Help Center.
+ *
+ * The overlay already queries this for its "already open here" list, so the
+ * Help Center is told the number rather than running a second query of its own.
+ * It never learns anything else about tickets, which keeps the coupling to one
+ * integer.
+ *
+ * The last value is kept, and replayed to anyone who subscribes late: the two
+ * are siblings that mount in the same pass, so either could subscribe or
+ * announce first.
+ */
+
+export const OPEN_TICKET_COUNT = "mh:open-ticket-count";
+
+let lastCount = 0;
+
+export function announceOpenTicketCount(count) {
+  if (typeof window === "undefined") return;
+  lastCount = count;
+  window.dispatchEvent(new CustomEvent(OPEN_TICKET_COUNT, { detail: count }));
+}
+
+export function onOpenTicketCount(handler) {
+  if (typeof window === "undefined") return () => {};
+  handler(lastCount);
+  const listener = (event) => handler(event.detail);
+  window.addEventListener(OPEN_TICKET_COUNT, listener);
+  return () => window.removeEventListener(OPEN_TICKET_COUNT, listener);
+}

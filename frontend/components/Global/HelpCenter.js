@@ -11,7 +11,8 @@ import { CURRENT_USER_QUERY } from '../Queries/User';
 import { UPDATE_USER } from '../Mutations/User';
 import useTranslation from "next-translate/useTranslation";
 import Button from "../DesignSystem/Button";
-import { openTicketPanel } from "../../lib/ticketPanel";
+import { openTicketPanel, onOpenTicketCount } from "../../lib/ticketPanel";
+import { isolateFromPage } from "../../lib/isolateFromPage";
 import {
   HelpButton,
   ActionsList,
@@ -27,11 +28,14 @@ import {
   DocSection,
   Support,
   fadeInUp,
-  scaleIn
+  scaleIn,
+  TicketCountBadge
 } from './HelpCenter/HelpCenterStyles';
 
 export default function HelpCenter() {
   const [isOpen, setIsOpen] = useState(false);
+  const [openTicketCount, setOpenTicketCount] = useState(0);
+  useEffect(() => onOpenTicketCount(setOpenTicketCount), []);
   const [modalType, setModalType] = useState(null);
   const [modalTitle, setModalTitle] = useState('');
   const [modalColor, setModalColor] = useState('');
@@ -107,7 +111,9 @@ export default function HelpCenter() {
       },
       {
         icon: '/assets/helpCenter/ticket.svg',
-        tooltip: t('helpCenter.fileTicket', {}, { default: 'File a ticket' }),
+        tooltip: openTicketCount
+          ? `${t('helpCenter.fileTicket', {}, { default: 'File a ticket' })} (${openTicketCount} open here)`
+          : t('helpCenter.fileTicket', {}, { default: 'File a ticket' }),
         bgColor: theme.primaryCalyspo,
         action: () => {
           setIsOpen(false);
@@ -264,7 +270,9 @@ export default function HelpCenter() {
   };
 
   return (
-    <>
+    // Clicks in here must not count as "outside" to a page modal, or opening
+    // help over a modal closes it. See lib/isolateFromPage.js.
+    <div {...isolateFromPage}>
       {/* Speed Dial Actions */}
       {isOpen && (
         <ActionsList>
@@ -287,8 +295,18 @@ export default function HelpCenter() {
       <HelpButton 
         isOpen={isOpen}
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={
+          openTicketCount
+            ? `Help Center — ${openTicketCount} open ticket${openTicketCount === 1 ? '' : 's'} on this page`
+            : 'Help Center'
+        }
       >
         {isOpen ? '✕' : '?'}
+        {/* Visible before anyone opens anything — the original ask was to see
+            ticket status next to the actual state of the page. */}
+        {!isOpen && openTicketCount > 0 && (
+          <TicketCountBadge aria-hidden="true">{openTicketCount}</TicketCountBadge>
+        )}
       </HelpButton>
 
       {/* Modal */}
@@ -312,6 +330,6 @@ export default function HelpCenter() {
           </ModalContent>
         </Modal>
       )}
-    </>
+    </div>
   );
 }

@@ -7,7 +7,8 @@ import { UserContext } from "./Authorized";
 import Button from "../DesignSystem/Button";
 import { surfaceForRoute } from "../../lib/surfaces";
 import { parseFigmaUrl, describeFigmaUrl } from "../../lib/figmaUrl";
-import { onOpenTicketPanel } from "../../lib/ticketPanel";
+import { onOpenTicketPanel, announceOpenTicketCount } from "../../lib/ticketPanel";
+import { isolateFromPage } from "../../lib/isolateFromPage";
 import {
   CREATE_TICKET,
   CREATE_TICKET_WITH_SCREENSHOT,
@@ -163,6 +164,12 @@ export default function TicketOverlay() {
     return () => router.events.off("routeChangeStart", close);
   }, [router.events]);
 
+  // Tell the Help Center how many are open here, so its launcher can show it
+  // before anyone opens the panel. Zero when the viewer cannot see tickets.
+  useEffect(() => {
+    announceOpenTicketCount(canManageTickets ? openTickets.length : 0);
+  }, [canManageTickets, openTickets.length]);
+
   if (!canManageTickets) return null;
 
   const evidence = () => ({
@@ -254,7 +261,21 @@ export default function TicketOverlay() {
     <>
 
       {open && (
-        <Panel data-mh-ticket-ui="true" role="dialog" aria-label="File a ticket">
+        <Panel
+          {...isolateFromPage}
+          data-mh-ticket-ui="true"
+          role="dialog"
+          aria-label="File a ticket"
+          onKeyDown={(event) => {
+            // Page modals close on Escape via a window listener. Stopping it
+            // here closes only this panel, so the modal you were reporting
+            // on stays open underneath.
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              setOpen(false);
+            }
+          }}
+        >
           <PanelHead>
             <div>
               <Eyebrow>Filing against</Eyebrow>
@@ -276,8 +297,20 @@ export default function TicketOverlay() {
           )}
 
           {openTickets.length > 0 && (
-            <Existing>
-              <Eyebrow>Already open here</Eyebrow>
+            <Existing role="status">
+              <ExistingHead>
+                <ExistingCount aria-hidden="true">{openTickets.length}</ExistingCount>
+                <div>
+                  <ExistingTitle>
+                    {openTickets.length === 1
+                      ? "1 ticket is already open on this page"
+                      : `${openTickets.length} tickets are already open on this page`}
+                  </ExistingTitle>
+                  <ExistingHint>
+                    Check these first — yours may already be filed, or someone may be on it.
+                  </ExistingHint>
+                </div>
+              </ExistingHead>
               {openTickets.map((ticket) => (
                 <ExistingRow key={ticket.id}>
                   {/* New tab, deliberately: you are part-way through filing on
@@ -292,6 +325,9 @@ export default function TicketOverlay() {
                   </ExistingLink>
                   <RowActions>
                     <Tag>{ticket.status.replace("_", " ").toLowerCase()}</Tag>
+                    <Tag data-claimed={ticket.assignee ? "yes" : "no"}>
+                      {ticket.assignee ? `${ticket.assignee.username} is on it` : "unclaimed"}
+                    </Tag>
                     <LinkButton type="button" onClick={() => markShipped(ticket.id)}>
                       shipped
                     </LinkButton>
@@ -448,10 +484,10 @@ const Panel = styled.div`
   right: 24px;
   bottom: 96px;
   z-index: 9999;
-  width: min(420px, calc(100vw - 48px));
-  max-height: min(calc(100vh - 140px), 720px);
+  width: min(540px, calc(100vw - 48px));
+  max-height: min(calc(100vh - 140px), 820px);
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
   border-radius: 12px;
   background: var(--MH-Theme-Neutrals-White, #ffffff);
   box-shadow: var(--MH-Theme-Elevation-High, 2px 2px 12px rgba(0, 0, 0, 0.19));
@@ -604,10 +640,46 @@ const Actions = styled.div`
 `;
 
 const Existing = styled.div`
-  margin-bottom: 16px;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--MH-Theme-Neutrals-Lighter, #f3f3f3);
+  /* A heads-up, not an error: accent yellow, which the palette already uses for
+     "look here" rather than the reds reserved for things that are wrong. */
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--MH-Theme-Accent-Base, #f2be42);
+  background: var(--MH-Theme-Accent-Light, #fdf2d0);
+`;
+
+const ExistingHead = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+`;
+
+const ExistingCount = styled.span`
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 100px;
+  background: var(--MH-Theme-Accent-Base, #f2be42);
+  color: var(--MH-Theme-Neutrals-Black, #171717);
+  font: var(--MH-Type-Label-Base);
+`;
+
+const ExistingTitle = styled.p`
+  margin: 0;
+  font: var(--MH-Type-Title-Small);
+  color: var(--MH-Theme-Neutrals-Black, #171717);
+`;
+
+const ExistingHint = styled.p`
+  margin: 2px 0 0;
+  font: var(--MH-Type-Body-Small);
+  color: var(--MH-Theme-Accent-Dark, #5d5763);
 `;
 
 const ExistingRow = styled.div`
@@ -631,6 +703,10 @@ const Tag = styled.span`
   font: var(--MH-Type-Label-Small);
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
   white-space: nowrap;
+
+  &[data-claimed="yes"] {
+    color: var(--MH-Theme-Primary-Dark, #336f8a);
+  }
 `;
 
 const LinkButton = styled.button`

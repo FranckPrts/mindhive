@@ -69,6 +69,37 @@ export const SET_TICKET_STATUS = gql`
   }
 `;
 
+// Claim or release a ticket. Two documents for the same reason CREATE_TICKET
+// has two: a relationship is set with `connect` and cleared with
+// `disconnect: true`, and GraphQL cannot choose between input shapes from a
+// variable. Passing `connect: { id: null }` is not a way to clear it.
+export const ASSIGN_TICKET = gql`
+  mutation ASSIGN_TICKET($id: ID!, $assigneeId: ID!) {
+    updateTicket(
+      where: { id: $id }
+      data: { assignee: { connect: { id: $assigneeId } } }
+    ) {
+      id
+      assignee {
+        id
+        username
+      }
+    }
+  }
+`;
+
+export const UNASSIGN_TICKET = gql`
+  mutation UNASSIGN_TICKET($id: ID!) {
+    updateTicket(where: { id: $id }, data: { assignee: { disconnect: true } }) {
+      id
+      assignee {
+        id
+        username
+      }
+    }
+  }
+`;
+
 export const EDIT_TICKET = gql`
   mutation EDIT_TICKET($id: ID!, $input: TicketUpdateInput!) {
     updateTicket(where: { id: $id }, data: $input) {

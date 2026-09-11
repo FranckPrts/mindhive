@@ -12,6 +12,10 @@ const TICKET_SUMMARY = `
     id
     username
   }
+  assignee {
+    id
+    username
+  }
 `;
 
 // The whole board. Ordered so open work sits at the top of each surface group.
@@ -23,13 +27,9 @@ export const GET_TICKETS = gql`
   }
 `;
 
-// The tickets on one surface. Powers both the overlay's "what's already filed
-// here" list — so the same thing doesn't get reported twice — and the badge
-// count on the launcher.
-//
-// One surface at a time is enough while the badge lives on the launcher. A
-// multi-surface variant (`surface: { in: $surfaces }`) becomes worth adding
-// only when markers put badges on several panels of one screen at once.
+// The tickets on one surface. Powers the overlay's "already open here" list —
+// so the same thing doesn't get reported twice — and the count shown on the
+// Help Center launcher.
 export const GET_TICKETS_FOR_SURFACE = gql`
   query GET_TICKETS_FOR_SURFACE($surface: String!) {
     tickets(
@@ -52,16 +52,27 @@ export const GET_TICKET = gql`
       notionPageId
       updatedAt
       resolvedAt
-      assignee {
-        id
-        username
-      }
       screenshot {
         id
         url
         width
         height
       }
+    }
+  }
+`;
+
+// Everyone who could be working on a ticket: holders of canManageTickets. The
+// same flag that gates the board, so an assignee is always someone who can see
+// the ticket they are assigned to.
+export const GET_TICKET_ASSIGNEES = gql`
+  query GET_TICKET_ASSIGNEES {
+    profiles(
+      where: { permissions: { some: { canManageTickets: { equals: true } } } }
+      orderBy: [{ username: asc }]
+    ) {
+      id
+      username
     }
   }
 `;

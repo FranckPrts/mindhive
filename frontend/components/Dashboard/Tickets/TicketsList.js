@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
+import { useContext, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useQuery } from "@apollo/client";
 import styled from "styled-components";
 
 import { GET_TICKETS } from "../../Queries/Ticket";
 import { SURFACES, getSurface } from "../../../lib/surfaces";
 import BeehiveLoading from "../../DesignSystem/BeehiveLoading";
+import { UserContext } from "../../Global/Authorized";
 
 /**
  * The board, grouped by surface rather than by date.
@@ -34,20 +36,114 @@ const KIND_LABELS = {
   IDEA: "Idea",
 };
 
+/**
+ * Areas are the first segment of a surface key. `dashboard` alone holds 26
+ * surfaces, so area narrows and the surface filter picks one out of it.
+ */
+const AREA_LABELS = {
+  front: "Public site",
+  auth: "Sign-in",
+  participate: "Participant",
+  dashboard: "Dashboard",
+  users: "Profiles",
+  builder: "Builder",
+  proposals: "Proposals",
+};
+
+const areaOf = (surfaceKey) => surfaceKey?.split(".")[0] ?? "";
+
+const STATUS_FILTERS = {
+  open: { label: "Open", test: (s) => OPEN_STATUSES.includes(s) },
+  resolved: { label: "Resolved", test: (s) => !OPEN_STATUSES.includes(s) },
+  all: { label: "All", test: () => true },
+};
+
+/**
+ * Filters live in the URL, not component state, so a filtered view survives a
+ * reload and can be sent to someone as a link. `area` is taken — it is the
+ * /dashboard/[area] route segment, "tickets" here — so the area filter is
+ * `group`.
+ */
+const FILTER_KEYS = ["group", "surface", "kind", "status", "who", "q"];
+
 /** Surface order follows the registry, so the board reads in product order. */
 const REGISTRY_ORDER = new Map(SURFACES.map((surface, index) => [surface.key, index]));
 
 export default function TicketsList() {
-  const [showResolved, setShowResolved] = useState(false);
+  const router = useRouter();
+  const { user } = useContext(UserContext);
   const { data, loading, error } = useQuery(GET_TICKETS, {
     fetchPolicy: "cache-and-network",
   });
 
+  const filters = {
+    group: router.query.group ?? "",
+    surface: router.query.surface ?? "",
+    kind: router.query.kind ?? "",
+    status: router.query.status ?? "open",
+    who: router.query.who ?? "",
+    q: router.query.q ?? "",
+  };
+
+  /** Update one filter in the URL without a navigation or a scroll jump. */
+  const setFilter = (key, value) => {
+    const next = { ...router.query, [key]: value };
+    // Changing area invalidates a surface picked from a different area.
+    if (key === "group" && value && areaOf(next.surface) !== value) delete next.surface;
+    for (const k of FILTER_KEYS) if (next[k] === "" || next[k] == null) delete next[k];
+    if (next.status === "open") delete next.status; // the default, kept out of links
+    router.replace({ pathname: router.pathname, query: next }, undefined, {
+      shallow: true,
+      scroll: false,
+    });
+  };
+
+  const clearFilters = () => {
+    const next = { ...router.query };
+    for (const k of FILTER_KEYS) delete next[k];
+    router.replace({ pathname: router.pathname, query: next }, undefined, {
+      shallow: true,
+      scroll: false,
+    });
+  };
+
+  const allTickets = data?.tickets ?? [];
+
+  // People who currently hold something, for the "who" filter — derived from
+  // the tickets rather than a separate query, so it only lists real claims.
+  const claimants = useMemo(() => {
+    const byId = new Map();
+    for (const t of allTickets) if (t.assignee) byId.set(t.assignee.id, t.assignee.username);
+    return [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [allTickets]);
+
+  const surfacesInUse = useMemo(() => {
+    const keys = new Set(allTickets.map((t) => t.surface));
+    return [...keys]
+      .filter((k) => !filters.group || areaOf(k) === filters.group)
+      .sort((a, b) => (REGISTRY_ORDER.get(a) ?? 1e9) - (REGISTRY_ORDER.get(b) ?? 1e9));
+  }, [allTickets, filters.group]);
+
+  const areasInUse = useMemo(
+    () => [...new Set(allTickets.map((t) => areaOf(t.surface)))].sort(),
+    [allTickets]
+  );
+
   const groups = useMemo(() => {
-    const tickets = data?.tickets ?? [];
-    const visible = showResolved
-      ? tickets
-      : tickets.filter((ticket) => OPEN_STATUSES.includes(ticket.status));
+    const needle = filters.q.trim().toLowerCase();
+    const statusTest = (STATUS_FILTERS[filters.status] ?? STATUS_FILTERS.open).test;
+    const visible = allTickets.filter((ticket) => {
+      if (!statusTest(ticket.status)) return false;
+      if (filters.group && areaOf(ticket.surface) !== filters.group) return false;
+      if (filters.surface && ticket.surface !== filters.surface) return false;
+      if (filters.kind && ticket.kind !== filters.kind) return false;
+      if (filters.who === "me" && ticket.assignee?.id !== user?.id) return false;
+      if (filters.who === "none" && ticket.assignee) return false;
+      if (filters.who && !["me", "none"].includes(filters.who) && ticket.assignee?.id !== filters.who)
+        return false;
+      if (needle && !ticket.title.toLowerCase().includes(needle)) return false;
+      return true;
+    });
 
     const bySurface = new Map();
     for (const ticket of visible) {
@@ -62,12 +158,13 @@ export default function TicketsList() {
       const orderB = REGISTRY_ORDER.get(b[0]) ?? Number.MAX_SAFE_INTEGER;
       return orderA - orderB;
     });
-  }, [data, showResolved]);
+  }, [allTickets, filters.group, filters.surface, filters.kind, filters.status,
+      filters.who, filters.q, user?.id]);
 
-  const total = data?.tickets?.length ?? 0;
-  const openCount = (data?.tickets ?? []).filter((ticket) =>
-    OPEN_STATUSES.includes(ticket.status)
-  ).length;
+  const total = allTickets.length;
+  const openCount = allTickets.filter((ticket) => OPEN_STATUSES.includes(ticket.status)).length;
+  const shownCount = groups.reduce((n, [, tickets]) => n + tickets.length, 0);
+  const filtering = FILTER_KEYS.some((k) => k !== "status" && filters[k]) || filters.status !== "open";
 
   if (loading && !data) return <BeehiveLoading />;
   if (error) return <Empty>Could not load tickets: {error.message}</Empty>;
@@ -78,26 +175,77 @@ export default function TicketsList() {
         <div>
           <h1 className="MH-Type-Heading-Base">Tickets</h1>
           <Summary>
-            {openCount} open of {total} · {groups.length} of {SURFACES.length} surfaces
-            have something filed
+            {filtering
+              ? `Showing ${shownCount} of ${total}`
+              : `${openCount} open of ${total} · ${groups.length} of ${SURFACES.length} surfaces have something filed`}
           </Summary>
         </div>
-        <Toggle>
-          <input
-            id="mh-show-resolved"
-            type="checkbox"
-            checked={showResolved}
-            onChange={(event) => setShowResolved(event.target.checked)}
-          />
-          <label htmlFor="mh-show-resolved">Include resolved</label>
-        </Toggle>
       </Head>
+
+      <Toolbar role="search" aria-label="Filter tickets">
+        <input
+          type="search"
+          placeholder="Search titles"
+          value={filters.q}
+          onChange={(event) => setFilter("q", event.target.value)}
+          aria-label="Search ticket titles"
+        />
+        <select value={filters.status} onChange={(e) => setFilter("status", e.target.value)} aria-label="Status">
+          {Object.entries(STATUS_FILTERS).map(([value, { label }]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        <select value={filters.group} onChange={(e) => setFilter("group", e.target.value)} aria-label="Area">
+          <option value="">All areas</option>
+          {areasInUse.map((area) => (
+            <option key={area} value={area}>{AREA_LABELS[area] ?? area}</option>
+          ))}
+        </select>
+        <select value={filters.surface} onChange={(e) => setFilter("surface", e.target.value)} aria-label="Surface">
+          <option value="">All surfaces</option>
+          {surfacesInUse.map((key) => (
+            <option key={key} value={key}>{getSurface(key)?.label ?? key}</option>
+          ))}
+        </select>
+        <select value={filters.kind} onChange={(e) => setFilter("kind", e.target.value)} aria-label="Kind">
+          <option value="">All kinds</option>
+          {Object.entries(KIND_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        <select value={filters.who} onChange={(e) => setFilter("who", e.target.value)} aria-label="Assignee">
+          <option value="">Anyone</option>
+          <option value="me">Mine</option>
+          <option value="none">Unclaimed</option>
+          {claimants
+            .filter(([id]) => id !== user?.id)
+            .map(([id, username]) => (
+              <option key={id} value={id}>{username}</option>
+            ))}
+        </select>
+        {filtering && (
+          <ClearButton type="button" onClick={clearFilters}>
+            Clear
+          </ClearButton>
+        )}
+      </Toolbar>
 
       {groups.length === 0 ? (
         <Empty>
-          Nothing filed yet. Press <kbd>Alt+Shift+T</kbd> on any page, or use the flag
-          button in the bottom right, to file a ticket against the surface you are
-          looking at.
+          {filtering && total > 0 ? (
+            <>
+              Nothing matches these filters.{" "}
+              <ClearButton type="button" onClick={clearFilters}>
+                Clear them
+              </ClearButton>
+            </>
+          ) : (
+            <>
+              Nothing filed yet. Open the Help Center and choose <strong>File a ticket</strong>,
+              or press <kbd>Alt+Shift+T</kbd> on any page, to file one against the surface
+              you are looking at.
+            </>
+          )}
         </Empty>
       ) : (
         groups.map(([surfaceKey, tickets]) => {
@@ -131,6 +279,9 @@ export default function TicketsList() {
                       <MetaText>{KIND_LABELS[ticket.kind] ?? ticket.kind}</MetaText>
                       {ticket.priority === "HIGH" && <Pill data-priority="HIGH">High</Pill>}
                       <MetaText>{ticket.reporter?.username ?? "unknown"}</MetaText>
+                      <Claim data-claimed={ticket.assignee ? "yes" : "no"}>
+                        {ticket.assignee ? `→ ${ticket.assignee.username}` : "unclaimed"}
+                      </Claim>
                     </Meta>
                   </Row>
                 ))}
@@ -169,13 +320,45 @@ const Summary = styled.p`
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
 `;
 
-const Toggle = styled.div`
+const Toolbar = styled.div`
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  margin: 0 0 24px;
+
+  input,
+  select {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
+    background: var(--MH-Theme-Neutrals-White, #ffffff);
+    font: var(--MH-Type-Body-Small);
+    color: var(--MH-Theme-Neutrals-Black, #171717);
+  }
+  input[type="search"] {
+    flex: 1 1 200px;
+  }
+`;
+
+const ClearButton = styled.button`
+  border: none;
+  background: none;
+  padding: 0 4px;
+  font: var(--MH-Type-Label-Base);
+  color: var(--MH-Theme-Primary-Dark, #336f8a);
+  text-decoration: underline;
+  cursor: pointer;
+`;
+
+const Claim = styled.span`
   font: var(--MH-Type-Body-Small);
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
+
+  &[data-claimed="yes"] {
+    color: var(--MH-Theme-Primary-Dark, #336f8a);
+  }
 `;
+
 
 const Group = styled.section`
   margin-bottom: 24px;
