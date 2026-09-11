@@ -2,16 +2,19 @@ import { useEffect, useState } from "react";
 import useTranslation from "next-translate/useTranslation";
 import clsx from "clsx";
 
-import Button from "../../DesignSystem/Button";
+import CompactActionButton from "../../DesignSystem/CompactActionButton";
 import Chip from "../../DesignSystem/Chip";
+import { DragIndicatorIcon, TrashIcon } from "../../DesignSystem/Icons";
 import { TYPE_ICONS } from "./TypeIcons";
 import { INTRO_VIDEO_FIELD_NAME } from "./questionUtils";
 import {
   CheckboxRow,
+  DragHandle,
   FieldStack,
+  InsertSlot,
+  QuestionBlock,
   QuestionCard,
   QuestionCardHeader,
-  QuestionSummary,
   TypePicker,
   TypeTile,
 } from "./styles";
@@ -95,10 +98,10 @@ export default function QuestionEditor({
   index,
   onChange,
   onRemove,
+  onInsertBefore,
   canRemove,
-  expanded,
-  onExpand,
-  onCollapse,
+  showInsertBefore = false,
+  dragDisabled = false,
   introVideoTaken = false,
   hiddenTypeKeys = [],
 }) {
@@ -113,11 +116,6 @@ export default function QuestionEditor({
   const visibleTypeKeys = TYPE_KEYS.filter(
     (type) => !hiddenTypeKeys.includes(type.value)
   );
-  const promptSummary =
-    String(question.label || "").trim() ||
-    t("opportunities.matchingRound.formWizard.promptEmpty", {}, {
-      default: "No prompt yet",
-    });
   // Opt-in: helper textarea stays hidden until Add, or when existing text is loaded.
   const [helperEditorOpen, setHelperEditorOpen] = useState(() =>
     hasNonEmptyHelperText(question.helperText),
@@ -148,282 +146,298 @@ export default function QuestionEditor({
     });
   };
 
-  if (!expanded) {
-    return (
-      <QuestionCard $collapsed>
-        <QuestionSummary>
-          <button
-            type="button"
-            className="summary-main"
-            onClick={onExpand}
-            aria-expanded={false}
-          >
-            <strong>
-              {t("opportunities.matchingRound.formWizard.questionNumber", { number: index + 1 }, {
-                default: "Question {{number}}",
-              })}
-            </strong>
-            <span className="summary-type">{typeLabel}</span>
-            <span className="summary-prompt">{promptSummary}</span>
-          </button>
-          <div className="summary-actions">
-            <Button type="button" variant="text" onClick={onExpand}>
-              {t("opportunities.matchingRound.formWizard.editQuestion", {}, {
-                default: "Edit",
-              })}
-            </Button>
-            {canRemove ? (
-              <Button type="button" variant="text" onClick={onRemove}>
-                {t("opportunities.matchingRound.formWizard.removeQuestion", {}, {
-                  default: "Remove",
-                })}
-              </Button>
-            ) : null}
-          </div>
-        </QuestionSummary>
-      </QuestionCard>
-    );
-  }
+  const dragLabel = t(
+    "opportunities.matchingRound.formWizard.dragToReorder",
+    {},
+    { default: "Drag to reorder" },
+  );
+  const insertLabel = t(
+    "opportunities.matchingRound.formWizard.insertQuestion",
+    {},
+    { default: "Insert question" },
+  );
+  const removeLabel = t(
+    "opportunities.matchingRound.formWizard.removeQuestion",
+    {},
+    { default: "Remove" },
+  );
 
   return (
-    <QuestionCard>
-      <QuestionCardHeader>
-        <div>
-          <strong>
-            {t("opportunities.matchingRound.formWizard.questionNumber", { number: index + 1 }, {
-              default: "Question {{number}}",
-            })}
-          </strong>
-          {typeChosen ? (
-            <div className="question-meta">{typeLabel}</div>
-          ) : (
-            <div className="question-meta">
-              {t("opportunities.matchingRound.formWizard.pickType", {}, {
-                default: "Choose a question type",
-              })}
-            </div>
+    <QuestionBlock>
+      {showInsertBefore ? (
+        <InsertSlot
+          type="button"
+          onClick={onInsertBefore}
+          disabled={dragDisabled}
+          aria-label={insertLabel}
+        >
+          <span className="insert-label">+ {insertLabel}</span>
+        </InsertSlot>
+      ) : null}
+
+      <QuestionCard>
+        <QuestionCardHeader>
+          <DragHandle
+            className="question-drag-handle"
+            aria-label={dragLabel}
+            title={dragLabel}
+            aria-disabled={dragDisabled ? "true" : undefined}
+            role="button"
+            tabIndex={dragDisabled ? -1 : 0}
+          >
+            <DragIndicatorIcon />
+          </DragHandle>
+          <div className="question-title-block">
+            <strong>
+              {t(
+                "opportunities.matchingRound.formWizard.questionNumber",
+                { number: index + 1 },
+                { default: "Question {{number}}" },
+              )}
+            </strong>
+            {typeChosen ? (
+              <div className="question-meta">{typeLabel}</div>
+            ) : (
+              <div className="question-meta">
+                {t("opportunities.matchingRound.formWizard.pickType", {}, {
+                  default: "Choose a question type",
+                })}
+              </div>
+            )}
+          </div>
+          <div className="header-actions">
+            {canRemove ? (
+              <CompactActionButton
+                kind="delete"
+                icon={<TrashIcon />}
+                onClick={onRemove}
+                ariaLabel={removeLabel}
+                title={removeLabel}
+              />
+            ) : null}
+          </div>
+        </QuestionCardHeader>
+
+        <TypePicker
+          $compact={typeChosen}
+          role="group"
+          aria-label={t(
+            "opportunities.matchingRound.formWizard.typePickerLabel",
+            {},
+            { default: "Question type" },
           )}
-        </div>
-        <div className="header-actions">
-          <Button type="button" variant="text" onClick={onCollapse}>
-            {t("opportunities.matchingRound.formWizard.doneEditing", {}, {
-              default: "Done",
-            })}
-          </Button>
-          {canRemove ? (
-            <Button type="button" variant="text" onClick={onRemove}>
-              {t("opportunities.matchingRound.formWizard.removeQuestion", {}, {
-                default: "Remove",
-              })}
-            </Button>
-          ) : null}
-        </div>
-      </QuestionCardHeader>
-
-      <TypePicker
-        $compact={typeChosen}
-        role="group"
-        aria-label={t("opportunities.matchingRound.formWizard.typePickerLabel", {}, {
-          default: "Question type",
-        })}
-      >
-        {visibleTypeKeys.map((type) => {
-          const Icon = TYPE_ICONS[type.value];
-          const active = typeChosen && typeKey === type.value;
-          const label = t(type.labelKey, {}, { default: type.labelDefault });
-          const hint = t(type.hintKey, {}, { default: type.hintDefault });
-          const disabled =
-            type.value === "file" && introVideoTaken && !isIntroVideo;
-          const disabledHint = disabled
-            ? t(
-                "opportunities.matchingRound.formWizard.types.introVideoTaken",
-                {},
-                {
-                  default:
-                    "This form already has an intro video upload question.",
-                },
-              )
-            : hint;
-          return (
-            <TypeTile
-              key={type.value}
-              type="button"
-              $compact={typeChosen}
-              $active={active}
-              className={clsx(active && "active")}
-              onClick={() => setType(type.value)}
-              disabled={disabled}
-              title={typeChosen ? `${label} — ${disabledHint}` : disabledHint}
-              aria-pressed={active}
-              aria-label={label}
-              aria-disabled={disabled}
-            >
-              {Icon ? <Icon className="type-icon" /> : null}
-              {!typeChosen ? (
-                <>
-                  <span className="type-label">{label}</span>
-                  <span className="type-hint">{disabledHint}</span>
-                </>
-              ) : null}
-            </TypeTile>
-          );
-        })}
-      </TypePicker>
-
-      {typeChosen ? (
-        <>
-          <FieldStack>
-            <label>
-              {t("opportunities.matchingRound.formWizard.promptLabel", {}, {
-                default: "Question prompt",
-              })}
-            </label>
-            <input
-              type="text"
-              value={question.label}
-              onChange={(e) => onChange({ ...question, label: e.target.value })}
-              placeholder={
-                isIntroVideo
-                  ? t(
-                      "opportunities.matchingRound.formWizard.introVideoPromptPlaceholder",
-                      {},
-                      {
-                        default: "e.g. Upload a short intro video for students",
-                      },
-                    )
-                  : t(
-                      "opportunities.matchingRound.formWizard.promptPlaceholder",
-                      {},
-                      {
-                        default: "What do you want to ask?",
-                      },
-                    )
-              }
-            />
-          </FieldStack>
-          {helperEditorOpen ? (
-            <FieldStack>
-              <label>
-                {t(
-                  "opportunities.matchingRound.formWizard.helperTextLabel",
-                  {},
-                  { default: "Helper text" },
-                )}
-              </label>
-              <textarea
-                value={question.helperText || ""}
-                onChange={(e) =>
-                  onChange({ ...question, helperText: e.target.value })
-                }
-                placeholder={t(
-                  "opportunities.matchingRound.formWizard.helperTextPlaceholder",
+        >
+          {visibleTypeKeys.map((type) => {
+            const Icon = TYPE_ICONS[type.value];
+            const active = typeChosen && typeKey === type.value;
+            const label = t(type.labelKey, {}, { default: type.labelDefault });
+            const hint = t(type.hintKey, {}, { default: type.hintDefault });
+            const disabled =
+              type.value === "file" && introVideoTaken && !isIntroVideo;
+            const disabledHint = disabled
+              ? t(
+                  "opportunities.matchingRound.formWizard.types.introVideoTaken",
                   {},
                   {
-                    default: "Extra guidance shown under the question",
+                    default:
+                      "This form already has an intro video upload question.",
                   },
-                )}
+                )
+              : hint;
+            return (
+              <TypeTile
+                key={type.value}
+                type="button"
+                $compact={typeChosen}
+                $active={active}
+                className={clsx(active && "active")}
+                onClick={() => setType(type.value)}
+                disabled={disabled}
+                title={typeChosen ? `${label} — ${disabledHint}` : disabledHint}
+                aria-pressed={active}
+                aria-label={label}
+                aria-disabled={disabled}
+              >
+                {Icon ? <Icon className="type-icon" /> : null}
+                {!typeChosen ? (
+                  <>
+                    <span className="type-label">{label}</span>
+                    <span className="type-hint">{disabledHint}</span>
+                  </>
+                ) : null}
+              </TypeTile>
+            );
+          })}
+        </TypePicker>
+
+        {typeChosen ? (
+          <>
+            <FieldStack>
+              <label>
+                {t("opportunities.matchingRound.formWizard.promptLabel", {}, {
+                  default: "Question prompt",
+                })}
+              </label>
+              <input
+                type="text"
+                value={question.label}
+                onChange={(e) =>
+                  onChange({ ...question, label: e.target.value })
+                }
+                placeholder={
+                  isIntroVideo
+                    ? t(
+                        "opportunities.matchingRound.formWizard.introVideoPromptPlaceholder",
+                        {},
+                        {
+                          default:
+                            "e.g. Upload a short intro video for students",
+                        },
+                      )
+                    : t(
+                        "opportunities.matchingRound.formWizard.promptPlaceholder",
+                        {},
+                        {
+                          default: "What do you want to ask?",
+                        },
+                      )
+                }
               />
-              <div>
-                <Chip
-                  type="button"
-                  style={{font: 'var(--MH-Type-Body-Base)', letterSpacing: 0, border:"2px solid var(--MH-Theme-Neutrals-Light,#d3dae0)"}}
-                  leading={<p>–</p>}
-                  onClick={() => {
-                    onChange({ ...question, helperText: "" });
-                    setHelperEditorOpen(false);
-                  }}
-                  label=
-                    {t(
+            </FieldStack>
+            {helperEditorOpen ? (
+              <FieldStack>
+                <label>
+                  {t(
+                    "opportunities.matchingRound.formWizard.helperTextLabel",
+                    {},
+                    { default: "Helper text" },
+                  )}
+                </label>
+                <textarea
+                  value={question.helperText || ""}
+                  onChange={(e) =>
+                    onChange({ ...question, helperText: e.target.value })
+                  }
+                  placeholder={t(
+                    "opportunities.matchingRound.formWizard.helperTextPlaceholder",
+                    {},
+                    {
+                      default: "Extra guidance shown under the question",
+                    },
+                  )}
+                />
+                <div>
+                  <Chip
+                    type="button"
+                    style={{
+                      font: "var(--MH-Type-Body-Base)",
+                      letterSpacing: 0,
+                      border:
+                        "2px solid var(--MH-Theme-Neutrals-Light,#d3dae0)",
+                    }}
+                    leading={<p>–</p>}
+                    onClick={() => {
+                      onChange({ ...question, helperText: "" });
+                      setHelperEditorOpen(false);
+                    }}
+                    label={t(
                       "opportunities.matchingRound.formWizard.helperTextRemove",
                       {},
                       { default: "Remove helper text" },
                     )}
-                >
-                </Chip>
+                  />
+                </div>
+              </FieldStack>
+            ) : (
+              <div>
+                <Chip
+                  type="button"
+                  style={{
+                    font: "var(--MH-Type-Body-Base)",
+                    letterSpacing: 0,
+                    border: "2px solid var(--MH-Theme-Neutrals-Light,#d3dae0)",
+                  }}
+                  leading={<p>+</p>}
+                  onClick={() => setHelperEditorOpen(true)}
+                  label={t(
+                    "opportunities.matchingRound.formWizard.helperTextAdd",
+                    {},
+                    { default: "Add helper text" },
+                  )}
+                />
               </div>
-            </FieldStack>
-          ) : (
-            <div>
-              <Chip
-                type="button"
-                style={{font: 'var(--MH-Type-Body-Base)', letterSpacing: 0, border:"2px solid var(--MH-Theme-Neutrals-Light,#d3dae0)"}}
-                leading={<p>+</p>}
-                onClick={() => setHelperEditorOpen(true)}
-                label={t(
-                  "opportunities.matchingRound.formWizard.helperTextAdd",
-                  {},
-                  { default: "Add helper text" },
-                )}
-              >
-              </Chip>
-            </div>
-          )}
-          {isIntroVideo ? (
-            <FieldStack>
-              <span className="field-hint">
-                {t(
-                  "opportunities.matchingRound.formWizard.introVideoHelper",
-                  {},
-                  {
-                    default:
-                      "Sponsors upload an MP4 or WebM (max 100MB). This updates the opportunity’s intro video — no storage settings to configure.",
-                  },
-                )}
-              </span>
-            </FieldStack>
-          ) : null}
+            )}
+            {isIntroVideo ? (
+              <FieldStack>
+                <span className="field-hint">
+                  {t(
+                    "opportunities.matchingRound.formWizard.introVideoHelper",
+                    {},
+                    {
+                      default:
+                        "Sponsors upload an MP4 or WebM (max 100MB). This updates the opportunity’s intro video — no storage settings to configure.",
+                    },
+                  )}
+                </span>
+              </FieldStack>
+            ) : null}
 
-          {isOpen ? (
+            {isOpen ? (
+              <CheckboxRow>
+                <input
+                  type="checkbox"
+                  checked={question.fieldType === "textarea"}
+                  onChange={(e) =>
+                    onChange({
+                      ...question,
+                      fieldType: e.target.checked ? "textarea" : "text",
+                    })
+                  }
+                />
+                {t("opportunities.matchingRound.formWizard.longAnswer", {}, {
+                  default: "Long answer",
+                })}
+              </CheckboxRow>
+            ) : null}
+
+            {needsOptions ? (
+              <FieldStack>
+                <label>
+                  {t(
+                    "opportunities.matchingRound.formWizard.choicesLabel",
+                    {},
+                    { default: "Choices (one per line)" },
+                  )}
+                </label>
+                <textarea
+                  value={question.optionsText}
+                  onChange={(e) =>
+                    onChange({ ...question, optionsText: e.target.value })
+                  }
+                  placeholder={t(
+                    "opportunities.matchingRound.formWizard.choicesPlaceholder",
+                    {},
+                    { default: "Yes\nMaybe\nNo" },
+                  )}
+                />
+              </FieldStack>
+            ) : null}
+
             <CheckboxRow>
               <input
                 type="checkbox"
-                checked={question.fieldType === "textarea"}
+                checked={!!question.isRequired}
                 onChange={(e) =>
-                  onChange({
-                    ...question,
-                    fieldType: e.target.checked ? "textarea" : "text",
-                  })
+                  onChange({ ...question, isRequired: e.target.checked })
                 }
               />
-              {t("opportunities.matchingRound.formWizard.longAnswer", {}, {
-                default: "Long answer",
+              {t("opportunities.matchingRound.formWizard.required", {}, {
+                default: "Required",
               })}
             </CheckboxRow>
-          ) : null}
-
-          {needsOptions ? (
-            <FieldStack>
-              <label>
-                {t("opportunities.matchingRound.formWizard.choicesLabel", {}, {
-                  default: "Choices (one per line)",
-                })}
-              </label>
-              <textarea
-                value={question.optionsText}
-                onChange={(e) =>
-                  onChange({ ...question, optionsText: e.target.value })
-                }
-                placeholder={t("opportunities.matchingRound.formWizard.choicesPlaceholder", {}, {
-                  default: "Yes\nMaybe\nNo",
-                })}
-              />
-            </FieldStack>
-          ) : null}
-
-          <CheckboxRow>
-            <input
-              type="checkbox"
-              checked={!!question.isRequired}
-              onChange={(e) =>
-                onChange({ ...question, isRequired: e.target.checked })
-              }
-            />
-            {t("opportunities.matchingRound.formWizard.required", {}, {
-              default: "Required",
-            })}
-          </CheckboxRow>
-        </>
-      ) : null}
-    </QuestionCard>
+          </>
+        ) : null}
+      </QuestionCard>
+    </QuestionBlock>
   );
 }

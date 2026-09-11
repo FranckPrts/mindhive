@@ -63,6 +63,28 @@ export function createBlankQuestion(overrides = {}) {
   };
 }
 
+export function reorderArray(arr, fromIndex, toIndex) {
+  if (
+    !Array.isArray(arr) ||
+    fromIndex == null ||
+    toIndex == null ||
+    fromIndex === toIndex
+  ) {
+    return arr;
+  }
+  const next = arr.slice();
+  const [removed] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, removed);
+  return next;
+}
+
+export function insertQuestionAt(list, index, question = createBlankQuestion()) {
+  const next = Array.isArray(list) ? list.slice() : [];
+  const at = Math.max(0, Math.min(index, next.length));
+  next.splice(at, 0, question);
+  return next;
+}
+
 export function questionsFromDefinition(definition) {
   const cards = definition?.cards || [];
   const fields = cards.flatMap((card) => card.fields || []);
