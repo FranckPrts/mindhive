@@ -298,6 +298,8 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         showInFeedbackCenter: Boolean
         statusTarget: String
         sectionId: ID
+        # Link this existing action card instead of creating a new one.
+        attachToCardId: ID
       }
       input UpdateTemplateMilestoneInput {
         id: ID!

@@ -2081,7 +2081,7 @@
 		},
 		"createMilestone": {
 			"addToBoard": "Add to board",
-			"scratchPreview": "Creates an empty draft review form linked to this step. After you add it to the board you can build the form's cards and fields, then publish. Student clones inherit whatever you publish.",
+			"scratchPreview": "Creates an empty review form linked to this step. After you add it to the board you can build the form's questions. The form linked to this milestone is the one reviewers see, and student clones inherit it.",
 			"sidePanelHelper": "Choose a MindHive default checkpoint or create a custom milestone. Nothing is added to the board until you click Add to board.",
 			"sidePanelTitle": "Create a milestone",
 			"title": "New milestone",

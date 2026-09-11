@@ -6,6 +6,7 @@ import { Container, Draggable } from "react-smooth-dnd";
 
 import Button from "../../DesignSystem/Button";
 import Modal from "../../DesignSystem/Modal";
+import { AddIcon } from "../../DesignSystem/Icons";
 import CardRenderer from "../DefinitionForm/CardRenderer";
 import { FieldShell } from "../DefinitionForm/styles";
 import {
@@ -28,6 +29,7 @@ import {
 import {
   BuilderColumn,
   ErrorText,
+  FooterActions,
   MetaActions,
   MetaHeader,
   PageBody,
@@ -368,28 +370,65 @@ export default function TeacherFormWizard({
             default: "Create a questionnaire",
           });
 
-  const actions = showClone ? (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handleBackFromClone}
-        disabled={saving}
-      >
-        {t("opportunities.matchingRound.formWizard.back", {}, { default: "Back" })}
-      </Button>
-    </>
+  // Preview lives in the footer next to the save actions so the title and note
+  // fields keep the full width of the panel.
+  const previewAction = isPreviewing ? (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => setIsPreviewing(false)}
+      disabled={saving}
+    >
+      {t(
+        "opportunities.matchingRound.formWizard.exitPreview",
+        {},
+        { default: "Exit preview" },
+      )}
+    </Button>
+  ) : (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => {
+        setError(null);
+        setIsPreviewing(true);
+      }}
+      disabled={saving}
+    >
+      {t(
+        "opportunities.matchingRound.formWizard.previewForm",
+        {},
+        { default: "Preview" },
+      )}
+    </Button>
+  );
+
+  const closeAction = (
+    <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+      {isPage
+        ? t("opportunities.matchingRound.formWizard.back", {}, {
+            default: "Back",
+          })
+        : t("opportunities.matchingRound.formWizard.cancel", {}, {
+            default: "Cancel",
+          })}
+    </Button>
+  );
+
+  // Review forms are governed by whether the teacher links them to a milestone,
+  // so they get a single Save instead of a draft / publish choice. Saving still
+  // publishes so the linked form resolves for reviewers.
+  const saveActions = isReview ? (
+    <Button
+      type="button"
+      variant="filled"
+      onClick={() => persist({ publish: true })}
+      disabled={saving}
+    >
+      {t("projects.formWizard.save", {}, { default: "Save" })}
+    </Button>
   ) : (
     <>
-      <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
-        {isPage
-          ? t("opportunities.matchingRound.formWizard.back", {}, {
-              default: "Back",
-            })
-          : t("opportunities.matchingRound.formWizard.cancel", {}, {
-              default: "Cancel",
-            })}
-      </Button>
       <Button
         type="button"
         variant="outline"
@@ -411,6 +450,31 @@ export default function TeacherFormWizard({
         })}
       </Button>
     </>
+  );
+
+  const actions = showClone ? (
+    <FooterActions>
+      <div className="footer-actions-right">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleBackFromClone}
+          disabled={saving}
+        >
+          {t("opportunities.matchingRound.formWizard.back", {}, {
+            default: "Back",
+          })}
+        </Button>
+      </div>
+    </FooterActions>
+  ) : (
+    <FooterActions>
+      <div className="footer-actions-left">{previewAction}</div>
+      <div className="footer-actions-right">
+        {closeAction}
+        {saveActions}
+      </div>
+    </FooterActions>
   );
 
   const dragDisabled = saving || isPreviewing;
@@ -448,20 +512,6 @@ export default function TeacherFormWizard({
         </>
       ) : isPreviewing ? (
         <>
-          <MetaActions>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsPreviewing(false)}
-              disabled={saving}
-            >
-              {t(
-                "opportunities.matchingRound.formWizard.exitPreview",
-                {},
-                { default: "Exit preview" },
-              )}
-            </Button>
-          </MetaActions>
           {hasPreviewCards ? (
             <PreviewStack>
               {(previewDefinition.cards || []).map((card) => (
@@ -560,23 +610,8 @@ export default function TeacherFormWizard({
                 disabled={saving}
               />
             </FieldShell>
-            <MetaActions>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setError(null);
-                  setIsPreviewing(true);
-                }}
-                disabled={saving}
-              >
-                {t(
-                  "opportunities.matchingRound.formWizard.previewForm",
-                  {},
-                  { default: "Preview" },
-                )}
-              </Button>
-              {!isReview && !isStudentAssessment && !initialDefinitionId ? (
+            {!isReview && !isStudentAssessment && !initialDefinitionId ? (
+              <MetaActions>
                 <Button
                   type="button"
                   variant="text"
@@ -594,8 +629,8 @@ export default function TeacherFormWizard({
                     },
                   )}
                 </Button>
-              ) : null}
-            </MetaActions>
+              </MetaActions>
+            ) : null}
           </MetaHeader>
 
           <BuilderColumn>
@@ -634,18 +669,21 @@ export default function TeacherFormWizard({
                   </Draggable>
                 ))}
               </Container>
+              <div className="question-list-add">
+                <Button
+                  type="button"
+                  variant="outline"
+                  leadingIcon={<AddIcon />}
+                  onClick={appendQuestion}
+                  disabled={saving}
+                >
+                  {t("opportunities.matchingRound.formWizard.addQuestion", {}, {
+                    default: "Add question",
+                  })}
+                </Button>
+              </div>
               <div ref={listEndRef} />
             </QuestionList>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={appendQuestion}
-              disabled={saving}
-            >
-              {t("opportunities.matchingRound.formWizard.addQuestion", {}, {
-                default: "Add question",
-              })}
-            </Button>
           </BuilderColumn>
         </>
       )}

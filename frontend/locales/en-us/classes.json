@@ -171,7 +171,7 @@
 				"copyToCustomizeHint": "Default forms cannot be edited. Copy this milestone to create a custom milestone you can change.",
 				"defaultFormReadOnly": "This is a MindHive default review form. It cannot be edited from this card.",
 				"editReviewForm": "Edit review form",
-				"editReviewFormHint": "Scoped to this template board. Student clones inherit whatever you publish.",
+				"editReviewFormHint": "Scoped to this template board. The form linked to this milestone is the one reviewers see, and student clones inherit it.",
 				"includedCardsEmpty": "No cards are configured for this review step yet.",
 				"includedCardsHelper": "Students submit content from these cards when they reach this action card. Configure inclusion on each card's Student Answer Box settings.",
 				"includedCardsTitle": "Included in this review step",
@@ -1312,7 +1312,8 @@
 					"pickOne": "Pick one",
 					"pickOneHint": "Single choice",
 					"tasks": "Public tasks & surveys",
-					"tasksHint": "Sponsors pick from the public library"
+					"tasksHint": "Sponsors pick from the public library",
+					"unsupported": "Existing type — cannot be changed here."
 				}
 			},
 			"studentAssessmentWizard": {
@@ -2064,6 +2065,7 @@
 			},
 			"nameLabel": "Form title",
 			"namePlaceholder": "e.g. Proposal feedback",
+			"save": "Save",
 			"title": "Edit review form"
 		},
 		"hideFromStudents": "Prevent students from copying this template",

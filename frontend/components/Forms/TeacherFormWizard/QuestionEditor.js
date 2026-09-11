@@ -1,22 +1,23 @@
 import { useEffect, useState } from "react";
 import useTranslation from "next-translate/useTranslation";
-import clsx from "clsx";
 
 import CompactActionButton from "../../DesignSystem/CompactActionButton";
 import Chip from "../../DesignSystem/Chip";
-import { DragIndicatorIcon, TrashIcon } from "../../DesignSystem/Icons";
+import ButtonGroup from "../../DesignSystem/ButtonGroup";
+import DropdownSelect from "../../DesignSystem/DropdownSelect";
+import ToggleSwitch from "../../DesignSystem/ToggleSwitch";
+import { AddIcon, DragIndicatorIcon, TrashIcon } from "../../DesignSystem/Icons";
 import { TYPE_ICONS } from "./TypeIcons";
 import { INTRO_VIDEO_FIELD_NAME } from "./questionUtils";
 import {
-  CheckboxRow,
   DragHandle,
   FieldStack,
-  InsertSlot,
+  InsertRow,
   QuestionBlock,
   QuestionCard,
   QuestionCardHeader,
-  TypePicker,
-  TypeTile,
+  TogglesRow,
+  TypeOption,
 } from "./styles";
 
 function hasNonEmptyHelperText(helperText) {
@@ -111,7 +112,6 @@ export default function QuestionEditor({
   const isIntroVideo = question.fieldType === "file";
   const needsOptions =
     question.fieldType === "select" || question.fieldType === "multiselect";
-  const typeLabel = typeLabelFor(question.fieldType, t);
   const typeChosen = !!question.typeChosen;
   const visibleTypeKeys = TYPE_KEYS.filter(
     (type) => !hiddenTypeKeys.includes(type.value)
@@ -161,18 +161,103 @@ export default function QuestionEditor({
     {},
     { default: "Remove" },
   );
+  const typePickerLabel = t(
+    "opportunities.matchingRound.formWizard.typePickerLabel",
+    {},
+    { default: "Question type" },
+  );
+  const pickTypeLabel = t(
+    "opportunities.matchingRound.formWizard.pickType",
+    {},
+    { default: "Choose a question type" },
+  );
+
+  // One dropdown row instead of a grid of icon tiles: the icons move into the
+  // option rows, which keeps each question card short.
+  const typeOptions = visibleTypeKeys.map((type) => {
+    const Icon = TYPE_ICONS[type.value];
+    const label = t(type.labelKey, {}, { default: type.labelDefault });
+    const hint = t(type.hintKey, {}, { default: type.hintDefault });
+    const disabled = type.value === "file" && introVideoTaken && !isIntroVideo;
+    return {
+      value: type.value,
+      labelText: label,
+      disabled,
+      label: (
+        <TypeOption>
+          {Icon ? <Icon className="type-option-icon" /> : null}
+          <span className="type-option-text">
+            <span className="type-option-label">{label}</span>
+            <span className="type-option-hint">
+              {disabled
+                ? t(
+                    "opportunities.matchingRound.formWizard.types.introVideoTaken",
+                    {},
+                    {
+                      default:
+                        "This form already has an intro video upload question.",
+                    },
+                  )
+                : hint}
+            </span>
+          </span>
+        </TypeOption>
+      ),
+    };
+  });
+
+  // Forms can carry field types the wizard does not offer (legacy global
+  // review forms use `dual_textarea`). Surface the current type as a read-only
+  // option so the trigger shows it instead of the "choose a type" placeholder.
+  if (typeChosen && !typeOptions.some((option) => option.value === typeKey)) {
+    const legacyLabel = typeLabelFor(question.fieldType, t);
+    typeOptions.unshift({
+      value: typeKey,
+      labelText: legacyLabel,
+      disabled: true,
+      label: (
+        <TypeOption>
+          <span className="type-option-text">
+            <span className="type-option-label">{legacyLabel}</span>
+            <span className="type-option-hint">
+              {t(
+                "opportunities.matchingRound.formWizard.types.unsupported",
+                {},
+                { default: "Existing type — cannot be changed here." },
+              )}
+            </span>
+          </span>
+        </TypeOption>
+      ),
+    });
+  }
+
+  const SelectedIcon = typeChosen ? TYPE_ICONS[typeKey] : null;
 
   return (
     <QuestionBlock>
       {showInsertBefore ? (
-        <InsertSlot
-          type="button"
-          onClick={onInsertBefore}
-          disabled={dragDisabled}
-          aria-label={insertLabel}
-        >
-          <span className="insert-label">+ {insertLabel}</span>
-        </InsertSlot>
+        <InsertRow>
+          <ButtonGroup
+            size="XSmall"
+            type="Round"
+            // Action row, not a selection: the value stays empty so no segment
+            // ever latches on after a click.
+            selectionMode="multiple"
+            selectionRequired={false}
+            value={[]}
+            disabled={dragDisabled}
+            aria-label={insertLabel}
+            items={[
+              {
+                value: "insert",
+                label: insertLabel,
+                icon: <AddIcon />,
+              },
+            ]}
+            onChange={() => onInsertBefore()}
+          />
+        </InsertRow>
       ) : null}
 
       <QuestionCard>
@@ -195,15 +280,16 @@ export default function QuestionEditor({
                 { default: "Question {{number}}" },
               )}
             </strong>
-            {typeChosen ? (
-              <div className="question-meta">{typeLabel}</div>
-            ) : (
-              <div className="question-meta">
-                {t("opportunities.matchingRound.formWizard.pickType", {}, {
-                  default: "Choose a question type",
-                })}
-              </div>
-            )}
+          </div>
+          <div className="question-type-select">
+            <DropdownSelect
+              value={typeChosen ? typeKey : undefined}
+              onChange={setType}
+              options={typeOptions}
+              ariaLabel={typePickerLabel}
+              placeholder={pickTypeLabel}
+              leadingIcon={SelectedIcon ? <SelectedIcon /> : null}
+            />
           </div>
           <div className="header-actions">
             {canRemove ? (
@@ -217,58 +303,6 @@ export default function QuestionEditor({
             ) : null}
           </div>
         </QuestionCardHeader>
-
-        <TypePicker
-          $compact={typeChosen}
-          role="group"
-          aria-label={t(
-            "opportunities.matchingRound.formWizard.typePickerLabel",
-            {},
-            { default: "Question type" },
-          )}
-        >
-          {visibleTypeKeys.map((type) => {
-            const Icon = TYPE_ICONS[type.value];
-            const active = typeChosen && typeKey === type.value;
-            const label = t(type.labelKey, {}, { default: type.labelDefault });
-            const hint = t(type.hintKey, {}, { default: type.hintDefault });
-            const disabled =
-              type.value === "file" && introVideoTaken && !isIntroVideo;
-            const disabledHint = disabled
-              ? t(
-                  "opportunities.matchingRound.formWizard.types.introVideoTaken",
-                  {},
-                  {
-                    default:
-                      "This form already has an intro video upload question.",
-                  },
-                )
-              : hint;
-            return (
-              <TypeTile
-                key={type.value}
-                type="button"
-                $compact={typeChosen}
-                $active={active}
-                className={clsx(active && "active")}
-                onClick={() => setType(type.value)}
-                disabled={disabled}
-                title={typeChosen ? `${label} — ${disabledHint}` : disabledHint}
-                aria-pressed={active}
-                aria-label={label}
-                aria-disabled={disabled}
-              >
-                {Icon ? <Icon className="type-icon" /> : null}
-                {!typeChosen ? (
-                  <>
-                    <span className="type-label">{label}</span>
-                    <span className="type-hint">{disabledHint}</span>
-                  </>
-                ) : null}
-              </TypeTile>
-            );
-          })}
-        </TypePicker>
 
         {typeChosen ? (
           <>
@@ -382,24 +416,6 @@ export default function QuestionEditor({
               </FieldStack>
             ) : null}
 
-            {isOpen ? (
-              <CheckboxRow>
-                <input
-                  type="checkbox"
-                  checked={question.fieldType === "textarea"}
-                  onChange={(e) =>
-                    onChange({
-                      ...question,
-                      fieldType: e.target.checked ? "textarea" : "text",
-                    })
-                  }
-                />
-                {t("opportunities.matchingRound.formWizard.longAnswer", {}, {
-                  default: "Long answer",
-                })}
-              </CheckboxRow>
-            ) : null}
-
             {needsOptions ? (
               <FieldStack>
                 <label>
@@ -423,18 +439,35 @@ export default function QuestionEditor({
               </FieldStack>
             ) : null}
 
-            <CheckboxRow>
-              <input
-                type="checkbox"
+            <TogglesRow>
+              {isOpen ? (
+                <ToggleSwitch
+                  checked={question.fieldType === "textarea"}
+                  onChange={(next) =>
+                    onChange({
+                      ...question,
+                      fieldType: next ? "textarea" : "text",
+                    })
+                  }
+                  label={t(
+                    "opportunities.matchingRound.formWizard.longAnswer",
+                    {},
+                    { default: "Long answer" },
+                  )}
+                />
+              ) : null}
+              <ToggleSwitch
                 checked={!!question.isRequired}
-                onChange={(e) =>
-                  onChange({ ...question, isRequired: e.target.checked })
+                onChange={(next) =>
+                  onChange({ ...question, isRequired: next })
                 }
+                label={t(
+                  "opportunities.matchingRound.formWizard.required",
+                  {},
+                  { default: "Required" },
+                )}
               />
-              {t("opportunities.matchingRound.formWizard.required", {}, {
-                default: "Required",
-              })}
-            </CheckboxRow>
+            </TogglesRow>
           </>
         ) : null}
       </QuestionCard>

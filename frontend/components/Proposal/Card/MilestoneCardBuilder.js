@@ -36,7 +36,8 @@ import {
 } from "../Builder/cardTypeOptions";
 
 import TeacherFormWizard from "../../Forms/TeacherFormWizard";
-import FormDefinitionPreviewModal from "../../Forms/DefinitionForm/FormDefinitionPreviewModal";
+import FormDefinitionPreview from "../../Forms/DefinitionForm/FormDefinitionPreview";
+import FormDefinitionPreviewPanel from "../../Forms/DefinitionForm/FormDefinitionPreviewPanel";
 import MilestoneCapabilityRow from "./MilestoneCapabilityRow";
 import ReviewFormAttachmentCard from "./ReviewFormAttachmentCard";
 import Tooltip from "../../DesignSystem/Tooltip";
@@ -48,6 +49,8 @@ import { BOARD_REVIEW_FORM_DEFINITIONS } from "../../Queries/FormDefinition";
 
 const CAPABILITY_REVIEW = "review";
 const CAPABILITY_DATA_COLLECTION = "data_collection";
+/** Matches the roles MilestoneCreateMode grants a new custom milestone. */
+const MILESTONE_REVIEWER_PERMISSIONS = ["MENTOR", "TEACHER", "SCIENTIST"];
 
 const inputStyle = {
   width: "100%",
@@ -174,6 +177,15 @@ export default function MilestoneCardBuilder({
     milestone?.scope !== "template" &&
     capability === CAPABILITY_REVIEW &&
     !!milestone?.id;
+
+  // A custom action card with no Milestone row yet: the milestone is created on
+  // demand the first time the teacher starts a form.
+  const canStartFormForCard =
+    isClassTemplate &&
+    !isDefault &&
+    !milestone?.id &&
+    !!proposalCard?.id &&
+    !!proposal?.id;
 
   const actionLabel = getActionCardLabel(proposalCard, tBuilder);
   const curriculumType = getCurriculumType(boardWithSections || proposal);
@@ -418,6 +430,10 @@ export default function MilestoneCardBuilder({
   const openFormEditor = async (templateKey = null, { replace = false } = {}) => {
     if (!isClassTemplate || !milestone?.id || !proposal?.id || editBusy) return;
 
+    // Editor and preview share the right column, so the preview must not be
+    // left open underneath and reappear when the wizard closes.
+    setFormPreviewOpen(false);
+
     if (isDefault) {
       await copyMilestoneToCustomize();
       return;
@@ -483,6 +499,50 @@ export default function MilestoneCardBuilder({
         throw new Error("Could not open the review form for editing.");
       }
       openWizard(forked.id, milestone.key);
+    } catch (err) {
+      alert(err?.message);
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  /**
+   * Custom ACTION cards can exist without a Milestone row, which left the
+   * teacher with no way to start a review form. Create the milestone for this
+   * board, link it to the card that is already on the board, then open the
+   * wizard on the form the mutation provisions.
+   */
+  const startFormForCardWithoutMilestone = async (templateKey = null) => {
+    if (!canStartFormForCard || editBusy) return;
+    setEditBusy(true);
+    try {
+      const sourceFormDefinitionKey = templateKey
+        ? resolveReviewFormKey(
+            getMilestoneForCardType(templateKey, milestones),
+            curriculumType
+          )
+        : null;
+      const result = await createTemplateMilestone({
+        variables: {
+          input: {
+            templateBoardId: proposal.id,
+            title: proposalCard?.title || actionLabel || "",
+            description: proposalCard?.description || "",
+            attachToCardId: proposalCard.id,
+            sourceFormDefinitionKey,
+            canReviewPermissionNames: MILESTONE_REVIEWER_PERMISSIONS,
+            showInFeedbackCenter: true,
+            statusTarget: "board",
+          },
+        },
+        refetchQueries: boardRefetchQueries,
+        awaitRefetchQueries: true,
+      });
+      const created = result?.data?.createTemplateMilestone;
+      if (!created?.formDefinition?.id) {
+        throw new Error("Could not start a review form for this milestone.");
+      }
+      openWizard(created.formDefinition.id, created.key);
     } catch (err) {
       alert(err?.message);
     } finally {
@@ -946,6 +1006,41 @@ export default function MilestoneCardBuilder({
               milestoneKey={wizardMilestoneKey}
             />
           </div>
+        ) : formPreviewOpen ? (
+          <div className="milestoneReviewFormEditorPanel">
+            <FormDefinitionPreviewPanel
+              open
+              onClose={() => setFormPreviewOpen(false)}
+              board={boardWithSections}
+              milestone={milestone}
+              actionLabel={displayTitle || actionLabel}
+              onEdit={
+                isDefault
+                  ? canCopyForm
+                    ? () => {
+                        setFormPreviewOpen(false);
+                        copyMilestoneToCustomize();
+                      }
+                    : null
+                  : isTemplateMilestone
+                    ? () => {
+                        setFormPreviewOpen(false);
+                        openFormEditor(null);
+                      }
+                    : null
+              }
+              editBusy={editBusy}
+              onCopy={
+                isDefault && canCopyForm
+                  ? () => {
+                      setFormPreviewOpen(false);
+                      copyMilestoneToCustomize();
+                    }
+                  : null
+              }
+              copyBusy={editBusy}
+            />
+          </div>
         ) : (
           <div
             className={clsx("infoBoard", {
@@ -998,7 +1093,51 @@ export default function MilestoneCardBuilder({
                   )}
                 </div>
 
-                {hasAttachedReviewForm ? (
+                {hasAttachedReviewForm && isDefault ? (
+                  // Default milestones are read-only, so the form itself is the
+                  // panel: no preview toggle and no actions on the form. Copying
+                  // to a custom milestone stays below, outside the preview.
+                  <>
+                    <FormDefinitionPreview
+                      board={boardWithSections}
+                      milestone={milestone}
+                      proposalBoardId={proposal?.id}
+                      maxHeight="none"
+                    />
+                    {canCopyForm ? (
+                      <div style={formActionsStyle}>
+                        <Button
+                          type="button"
+                          variant="filled"
+                          disabled={editBusy}
+                          onClick={copyMilestoneToCustomize}
+                        >
+                          {editBusy
+                            ? t(
+                                "projects.milestonesMenu.copyingMilestone",
+                                {},
+                                { default: "Copying…" }
+                              )
+                            : t(
+                                "projects.milestonesMenu.copyToCustomize",
+                                {},
+                                { default: "Copy milestone to customize" }
+                              )}
+                        </Button>
+                      </div>
+                    ) : null}
+                    <p style={helperTextStyle}>
+                      {t(
+                        "board.expendedCard.actionCard.copyToCustomizeHint",
+                        {},
+                        {
+                          default:
+                            "Default forms cannot be edited. Copy this milestone to create a custom milestone you can change.",
+                        }
+                      )}
+                    </p>
+                  </>
+                ) : hasAttachedReviewForm ? (
                   <>
                     <ReviewFormAttachmentCard
                       board={boardWithSections}
@@ -1007,17 +1146,13 @@ export default function MilestoneCardBuilder({
                       editBusy={editBusy}
                       onPreview={() => setFormPreviewOpen(true)}
                       onEdit={
-                        isDefault
-                          ? canCopyForm
+                        isTemplateMilestone
+                          ? () => {
+                              openFormEditor(null);
+                            }
+                          : canCopyForm
                             ? copyMilestoneToCustomize
                             : null
-                          : isTemplateMilestone
-                            ? () => {
-                                openFormEditor(null);
-                              }
-                            : canCopyForm
-                              ? copyMilestoneToCustomize
-                              : null
                       }
                     />
                     {isTemplateMilestone && hasBoardScopedForm ? (
@@ -1148,23 +1283,14 @@ export default function MilestoneCardBuilder({
                       </>
                     ) : (
                       <p style={helperTextStyle}>
-                        {isDefault
-                          ? t(
-                              "board.expendedCard.actionCard.copyToCustomizeHint",
-                              {},
-                              {
-                                default:
-                                  "Default forms cannot be edited. Copy this milestone to create a custom milestone you can change.",
-                              }
-                            )
-                          : t(
-                              "board.expendedCard.actionCard.editReviewFormHint",
-                              {},
-                              {
-                                default:
-                                  "Scoped to this template board. Student clones inherit whatever you publish.",
-                              }
-                            )}
+                        {t(
+                          "board.expendedCard.actionCard.editReviewFormHint",
+                          {},
+                          {
+                            default:
+                              "Scoped to this template board. Student clones inherit whatever you publish.",
+                          }
+                        )}
                       </p>
                     )}
                   </>
@@ -1255,6 +1381,69 @@ export default function MilestoneCardBuilder({
                           }))}
                         />
                       ) : null}
+                    </div>
+                    <p style={helperTextStyle}>
+                      {t(
+                        "board.expendedCard.milestoneCard.boardFormsHint",
+                        {},
+                        {
+                          default:
+                            "Forms you create stay on this template board and can be re-linked later.",
+                        }
+                      )}
+                    </p>
+                  </>
+                ) : canStartFormForCard ? (
+                  <>
+                    <div style={formActionsStyle}>
+                      <Button
+                        type="button"
+                        variant="filled"
+                        disabled={editBusy}
+                        onClick={() => startFormForCardWithoutMilestone(null)}
+                      >
+                        {editBusy
+                          ? t(
+                              "board.expendedCard.actionCard.openingEditor",
+                              {},
+                              { default: "Opening editor…" }
+                            )
+                          : t(
+                              "board.expendedCard.milestoneCard.createFromScratch",
+                              {},
+                              { default: "Create from scratch" }
+                            )}
+                      </Button>
+                      <DropdownMenu
+                        ariaLabel={t(
+                          "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
+                          {},
+                          { default: "From MindHive template" }
+                        )}
+                        renderTrigger={({ onClick, open, ariaLabel }) => (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={editBusy}
+                            aria-expanded={open}
+                            aria-haspopup="menu"
+                            aria-label={ariaLabel}
+                            onClick={onClick}
+                          >
+                            {t(
+                              "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
+                              {},
+                              { default: "From MindHive template" }
+                            )}
+                          </Button>
+                        )}
+                        items={formTemplateOptions.map((option) => ({
+                          key: option.value,
+                          label: option.label,
+                          onClick: () =>
+                            startFormForCardWithoutMilestone(option.value),
+                        }))}
+                      />
                     </div>
                     <p style={helperTextStyle}>
                       {t(
@@ -1417,39 +1606,6 @@ export default function MilestoneCardBuilder({
           )}
         </p>
       </Modal>
-
-      <FormDefinitionPreviewModal
-        open={formPreviewOpen}
-        onClose={() => setFormPreviewOpen(false)}
-        board={boardWithSections}
-        milestone={milestone}
-        actionLabel={displayTitle || actionLabel}
-        onEdit={
-          isDefault
-            ? canCopyForm
-              ? () => {
-                  setFormPreviewOpen(false);
-                  copyMilestoneToCustomize();
-                }
-              : null
-            : isTemplateMilestone
-              ? () => {
-                  setFormPreviewOpen(false);
-                  openFormEditor(null);
-                }
-              : null
-        }
-        editBusy={editBusy}
-        onCopy={
-          isDefault && canCopyForm
-            ? () => {
-                setFormPreviewOpen(false);
-                copyMilestoneToCustomize();
-              }
-            : null
-        }
-        copyBusy={editBusy}
-      />
 
     </div>
   );
