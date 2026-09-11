@@ -16,6 +16,7 @@ import { getSurface } from "../../../lib/surfaces";
 import FigmaLink from "./FigmaLink";
 import ScreenshotAnnotator from "./ScreenshotAnnotator";
 import SupportTickets from "./SupportTickets";
+import DeleteTicket from "./DeleteTicket";
 import BeehiveLoading from "../../DesignSystem/BeehiveLoading";
 import Button from "../../DesignSystem/Button";
 import CopyButton from "../../DesignSystem/CopyButton";
@@ -368,6 +369,8 @@ export default function TicketPage({ id }) {
           {Object.keys(evidence).length === 0 && <Caption>Nothing captured.</Caption>}
         </Evidence>
       </Section>
+
+      <DeleteTicket ticket={ticket} />
     </Wrapper>
   );
 }
