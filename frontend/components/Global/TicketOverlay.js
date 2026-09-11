@@ -229,9 +229,12 @@ export default function TicketOverlay() {
         body: form.description ? { text: form.description } : null,
         evidence: evidence(),
         reporterId: user.id,
-        // Empty string would fail the backend's figma.com check; null is
-        // the way to say "not provided".
-        figmaDesignUrl: form.figmaDesignUrl.trim() || null,
+        // Empty string, not null: this is a non-nullable text column, where
+        // "" is how "not provided" is stored. The backend's figma.com check
+        // already skips empty values. (An earlier version sent null here on
+        // the mistaken belief that "" would fail that check — it failed
+        // every ticket filed without a link instead.)
+        figmaDesignUrl: form.figmaDesignUrl.trim(),
       };
       const result = screenshot
         ? await createTicketWithScreenshot({

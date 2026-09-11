@@ -57,7 +57,8 @@ async function ticketForAgent(
     priority: ticket.priority,
     description: ticket.body?.text ?? null,
     evidence: ticket.evidence ?? null,
-    figmaDesignUrl: ticket.figmaDesignUrl ?? null,
+    // "" is how the column stores "no link"; tools should see null.
+    figmaDesignUrl: ticket.figmaDesignUrl || null,
     figmaNodeId: ticket.figmaNodeId ?? null,
     reporter: ticket.reporter?.username ?? null,
     createdAt: ticket.createdAt ?? null,

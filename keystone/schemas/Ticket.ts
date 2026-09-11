@@ -175,6 +175,14 @@ export const Ticket = list({
         data.resolvedAt = null;
       }
 
+      // Keystone text() columns are non-nullable: "no value" is "", and an
+      // explicit null is rejected by the field's own validateInput as
+      // "Figma Design Url is required" — even though the field is optional.
+      // resolveInput runs before that check, so normalise null here. Any
+      // client may reasonably send null for "no link" (the Admin UI does), so
+      // this belongs on the server, not only in the one form that caused it.
+      if (data.figmaDesignUrl === null) data.figmaDesignUrl = "";
+
       // A wrong link is worse than none: it looks authoritative and only
       // fails when someone clicks it. Empty is always allowed.
       const url = data.figmaDesignUrl;
