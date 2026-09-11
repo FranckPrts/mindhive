@@ -15,7 +15,8 @@ export default function CardWrapper({
   user,
   proposal,
   cardId,
-  isCreateMode = false,
+  isCreateMilestone = false,
+  isCreateProposalCard = false,
   sectionId = null,
   openCard,
   closeCard,
@@ -28,7 +29,8 @@ export default function CardWrapper({
   registerCloseHandler,
   registerCardChrome,
 }) {
-  const skipCardQuery = isCreateMode && !cardId;
+  const skipCardQuery =
+    (isCreateMilestone || isCreateProposalCard) && !cardId;
 
   const {
     data,
@@ -51,7 +53,7 @@ export default function CardWrapper({
     user?.permissions.map((p) => p?.name).includes("TEACHER") ||
     user?.permissions.map((p) => p?.name).includes("MENTOR");
 
-  if (skipCardQuery && proposalBuildMode) {
+  if (skipCardQuery && proposalBuildMode && isCreateMilestone) {
     return (
       <MilestoneCreateMode
         proposal={proposal}
@@ -62,6 +64,36 @@ export default function CardWrapper({
               id: createdCardId,
               title: cardMeta.title,
               type: cardMeta.type || "ACTION",
+            });
+          }
+        }}
+        closeCard={closeCard}
+        autoUpdateStudentBoards={autoUpdateStudentBoards}
+        propagateToClones={propagateToClones}
+        onTemplateChangedWithoutPropagation={
+          onTemplateChangedWithoutPropagation
+        }
+        hideBoardChromeNav={hideBoardChromeNav}
+        registerCloseHandler={registerCloseHandler}
+        registerCardChrome={registerCardChrome}
+      />
+    );
+  }
+
+  if (skipCardQuery && proposalBuildMode && isCreateProposalCard) {
+    return (
+      <CardBuilder
+        user={user}
+        proposal={proposal}
+        proposalCard={null}
+        isCreateMode
+        sectionId={sectionId}
+        onCreated={(createdCardId, cardMeta = {}) => {
+          if (createdCardId && openCard) {
+            openCard({
+              id: createdCardId,
+              title: cardMeta.title,
+              type: cardMeta.type || "PROPOSAL",
             });
           }
         }}

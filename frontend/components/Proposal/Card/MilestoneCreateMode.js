@@ -356,7 +356,8 @@ export default function MilestoneCreateMode({
     registerCardChrome({
       kind: "milestone",
       previewMode: false,
-      saving: creating || createDisabled,
+      saving: creating,
+      saveDisabled: createDisabled && !creating,
       typeLabel: tBuilder(
         "section.createMilestone.typeLabel",
         {},

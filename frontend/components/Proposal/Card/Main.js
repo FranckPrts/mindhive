@@ -321,7 +321,7 @@ export default function ProposalCard({
               <label htmlFor="description">
                 <div className="cardHeader">
                   {t("board.instructions", "Instructions for Students")}
-                </div>
+                </div>asd
                 <div className="cardSubheaderComment">
                   {t(
                     "board.instructionsComment",

@@ -244,7 +244,7 @@ export default function BoardEditorChrome({
             <Button
               variant="filled"
               onClick={onCardSave}
-              disabled={cardChrome.saving}
+              disabled={cardChrome.saving || cardChrome.saveDisabled}
             >
               {cardChrome.saveLabel ||
                 tClasses("board.save", {}, { default: "Save" })}
