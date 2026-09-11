@@ -31,13 +31,12 @@ import {
   getSubmissionStatus,
   getTeamEligibleOpportunities,
   inferBallotQueue,
-  studentDisplayName,
   summarizeMutualClassmates,
 } from "../../../../../lib/connectBallotUtils";
-import { getMatchingQueue } from "../../../../../lib/connectPreferenceMatchingPreference";
 import { downloadStudentBallotCsv } from "../../../../../lib/downloadStudentBallotCsv";
 import MessageCard from "../../../../DesignSystem/MessageCard";
 import Modal from "../../../../DesignSystem/Modal";
+import StudentNameDisplay from "./StudentNameDisplay";
 import StudentPreferenceSubmission from "../../../StudentClasses/ClassPage/Opportunities/StudentPreferenceSubmission";
 
 const STUDENT_RANKING_SUB_MODES = {
@@ -276,6 +275,7 @@ const ZoneLabel = styled.p`
 function StudentBallotRow({
   row,
   studentById,
+  preferenceByStudentId,
   classmateListsByStudent,
   activePickCount = 0,
   assessmentFormDefinition,
@@ -328,24 +328,6 @@ function StudentBallotRow({
     },
   );
 
-  const matchingQueue =
-    getMatchingQueue(row.preference?.studentMatchingPreference) ||
-    (row.preference ? row.queue : null);
-  const matchingQueueLabel =
-    matchingQueue === "team_first"
-      ? t(
-          "opportunities.matchingRound.studentRanking.choiceTeamFirst",
-          {},
-          { default: "Team first" },
-        )
-      : matchingQueue === "project_first"
-        ? t(
-            "opportunities.matchingRound.studentRanking.choiceProjectFirst",
-            {},
-            { default: "Project first" },
-          )
-        : null;
-
   const mutualLabel =
     mutualSummary.mutual + mutualSummary.oneWay + mutualSummary.received > 0
       ? t(
@@ -391,18 +373,17 @@ function StudentBallotRow({
     <StudentRow>
       <RowSummary>
         <RowMain>
-          <RowName>{displayName(row.student)}</RowName>
+          <RowName>
+            <StudentNameDisplay
+              student={row.student}
+              preference={row.preference}
+            />
+          </RowName>
           <Chip
             variant="static"
             tone={STATUS_TONE[row.submissionStatus] || "neutral"}
             label={statusLabel}
           />
-          {matchingQueueLabel ? (
-            <Chip
-              variant="static"
-              label={matchingQueueLabel}
-            />
-          ) : null}
           {mutualLabel ? (
             <Chip variant="static" tone="neutral" label={mutualLabel} />
           ) : null}
@@ -478,7 +459,18 @@ function StudentBallotRow({
                         <DetailItem key={classmateId}>
                           <RankBadge>{index + 1}</RankBadge>
                           <ItemTitle>
-                            {studentDisplayName(classmate) || classmateId}
+                            <StudentNameDisplay
+                              student={
+                                classmate || {
+                                  id: classmateId,
+                                  username: classmateId,
+                                }
+                              }
+                              preference={
+                                preferenceByStudentId?.get?.(classmateId) ||
+                                null
+                              }
+                            />
                           </ItemTitle>
                           {mutualChip ? (
                             <Chip
@@ -530,7 +522,18 @@ function StudentBallotRow({
                           <DetailItem key={classmateId}>
                             <RankBadge>{activePickCount + index + 1}</RankBadge>
                             <ItemTitle>
-                              {studentDisplayName(classmate) || classmateId}
+                              <StudentNameDisplay
+                                student={
+                                  classmate || {
+                                    id: classmateId,
+                                    username: classmateId,
+                                  }
+                                }
+                                preference={
+                                  preferenceByStudentId?.get?.(classmateId) ||
+                                  null
+                                }
+                              />
                             </ItemTitle>
                             {mutualChip ? (
                               <Chip
@@ -574,7 +577,18 @@ function StudentBallotRow({
                         <DetailItem key={classmateId}>
                           <RankBadge>{index + 1}</RankBadge>
                           <ItemTitle>
-                            {studentDisplayName(classmate) || classmateId}
+                            <StudentNameDisplay
+                              student={
+                                classmate || {
+                                  id: classmateId,
+                                  username: classmateId,
+                                }
+                              }
+                              preference={
+                                preferenceByStudentId?.get?.(classmateId) ||
+                                null
+                              }
+                            />
                           </ItemTitle>
                           {mutualChip ? (
                             <Chip
@@ -1428,6 +1442,7 @@ const MatchingRoundStudentBallotPanel = forwardRef(
                 key={row.student.id}
                 row={row}
                 studentById={studentById}
+                preferenceByStudentId={prefByStudentId}
                 classmateListsByStudent={classmateListsByStudent}
                 activePickCount={activePickCount}
                 assessmentFormDefinition={assessmentFormDefinition}

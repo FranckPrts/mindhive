@@ -1413,6 +1413,7 @@
 				"teamGroupOpen": "Connected, but not a closed team",
 				"teamGroupSolo": "No mutual teammates",
 				"teamGroupMissingPick": "{{from}} didn’t pick {{to}}",
+				"teamGroupMissingPickVerb": "didn’t pick",
 				"teamGroupMissingMore": "+{{count}} more missing picks",
 				"teamGroupSizeOver": "{{count}} students for a team of {{teamSize}}",
 				"teamGroupSizeUnder": "Only {{count}} for a team of {{teamSize}}",
@@ -1430,6 +1431,18 @@
 				"preferenceRankCount": "{{count}} as {{rank}}",
 				"preferenceListLabel": "Students",
 				"preferenceEmpty": "No submitted ballot includes this opportunity yet."
+			},
+			"studentName": {
+				"queueTeamShort": "T",
+				"queueProjectShort": "P",
+				"queueTeamTooltip": "Team first",
+				"queueProjectTooltip": "Project first",
+				"openNotesAria": "Open teaching team notes for {{name}}",
+				"notesTitle": "Notes on {{name}}",
+				"notesLabel": "Private notes for the teaching team. Students cannot see these.",
+				"cancel": "Cancel",
+				"save": "Save",
+				"saving": "Saving…"
 			},
 			"studentRanking": {
 				"title": "Student ballots",
