@@ -88,11 +88,7 @@ export default function TicketPage({ id }) {
       <h1 className="MH-Type-Heading-Small">{ticket.title}</h1>
       {/* Seen first rather than buried in the facts grid below: for a design
           ticket, where the intended design lives is the argument. */}
-      {ticket.figmaDesignUrl && (
-        <TitleLinks>
-          <FigmaLink url={ticket.figmaDesignUrl} detail />
-        </TitleLinks>
-      )}
+      <FigmaLink url={ticket.figmaDesignUrl} variant="card" />
 
       <Facts>
         <Fact>
@@ -300,12 +296,6 @@ const Wrapper = styled.div`
   }
 `;
 
-const TitleLinks = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: -8px 0 16px;
-`;
 
 const Back = styled.p`
   margin: 0 0 12px;
