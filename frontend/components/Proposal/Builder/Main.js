@@ -96,6 +96,7 @@ export default function ProposalBuilder({
         saving: !!config.saving,
         typeLabel: config.typeLabel || null,
         isDefaultAction: !!config.isDefaultAction,
+        saveLabel: config.saveLabel || null,
       };
       if (
         prev &&
@@ -103,7 +104,8 @@ export default function ProposalBuilder({
         prev.previewMode === next.previewMode &&
         prev.saving === next.saving &&
         prev.typeLabel === next.typeLabel &&
-        prev.isDefaultAction === next.isDefaultAction
+        prev.isDefaultAction === next.isDefaultAction &&
+        prev.saveLabel === next.saveLabel
       ) {
         return prev;
       }
@@ -136,11 +138,18 @@ export default function ProposalBuilder({
     onClose?.();
   };
 
-  const cardTitle = card
-    ? isActionCard(card)
-      ? getActionCardLabel(card, t)
-      : card?.title
-    : "";
+  const isCreateMilestone = !!card?.createMilestone;
+  const cardTitle = isCreateMilestone
+    ? t(
+        "section.createMilestone.title",
+        {},
+        { default: "New milestone" }
+      )
+    : card
+      ? isActionCard(card)
+        ? getActionCardLabel(card, t)
+        : card?.title
+      : "";
   const hideBoardChromeNav = !isPreview && !!proposalBuildMode;
   const showChrome = !isPreview;
 
@@ -208,6 +217,9 @@ export default function ProposalBuilder({
               user={user}
               proposal={proposal}
               cardId={card?.id}
+              isCreateMode={isCreateMilestone}
+              sectionId={card?.sectionId || null}
+              openCard={openCard}
               closeCard={closeCard}
               proposalBuildMode={proposalBuildMode}
               isPreview={isPreview}

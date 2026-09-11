@@ -150,11 +150,6 @@ export const StyledProposal = styled.div`
       gap: 8px;
       min-width: 0;
     }
-    .boardEditorChromeTypeBadge {
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-    }
     .boardEditorChromeTitle {
       margin: 0;
       font: var(--MH-Type-Title-Large);

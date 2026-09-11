@@ -807,43 +807,40 @@ export default function MilestoneCardBuilder({
                 )}
                 onChange={persistCapability}
               />
-              <MilestoneCapabilityRow
-                name="milestoneCapability"
-                value={CAPABILITY_DATA_COLLECTION}
-                checked={capability === CAPABILITY_DATA_COLLECTION}
-                disabled={
-                  !canEditCapability || capabilityBusy || dataCollectionTaken
-                }
-                headline={t(
-                  "board.expendedCard.milestoneCard.capabilityDataTitle",
-                  {},
-                  {
-                    default: "Allow student to start data collection.",
+              <Tooltip side="right" content={dataCollectionTaken ? t(
+                        "board.expendedCard.milestoneCard.dataCollectionAlreadyOnBoard",
+                        {},
+                        {
+                          default:
+                            "Data collection is already on this board. Each board can have only one data collection step.",
+                        }
+                      ) : undefined}>
+                <MilestoneCapabilityRow
+                  name="milestoneCapability"
+                  value={CAPABILITY_DATA_COLLECTION}
+                  checked={capability === CAPABILITY_DATA_COLLECTION}
+                  disabled={
+                    !canEditCapability || capabilityBusy || dataCollectionTaken
                   }
-                )}
-                supportingText={t(
-                  "board.expendedCard.milestoneCard.capabilityDataDescription",
-                  {},
-                  {
-                    default:
-                      "Let your student submit their study for data collection and lock their study builder with this milestone.",
-                  }
-                )}
-                onChange={persistCapability}
-              />
+                  headline={t(
+                    "board.expendedCard.milestoneCard.capabilityDataTitle",
+                    {},
+                    {
+                      default: "Allow student to start data collection.",
+                    }
+                  )}
+                  supportingText={t(
+                    "board.expendedCard.milestoneCard.capabilityDataDescription",
+                    {},
+                    {
+                      default:
+                        "Let your student submit their study for data collection and lock their study builder with this milestone.",
+                    }
+                  )}
+                  onChange={persistCapability}
+                />
+              </Tooltip>
             </div>
-            {dataCollectionTaken && canEditCapability ? (
-              <p style={helperTextStyle}>
-                {t(
-                  "board.expendedCard.milestoneCard.dataCollectionAlreadyOnBoard",
-                  {},
-                  {
-                    default:
-                      "Data collection is already on this board. Each board can have only one data collection step.",
-                  }
-                )}
-              </p>
-            ) : null}
           </section>
 
           {capability === CAPABILITY_DATA_COLLECTION ? (

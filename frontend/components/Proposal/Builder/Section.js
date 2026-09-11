@@ -14,13 +14,8 @@ import Button from "../../DesignSystem/Button";
 import IconButton from "../../DesignSystem/IconButton";
 import DropdownMenu from "../../DesignSystem/DropdownMenu";
 import { MilestoneIcon, ProjectCardIcon } from "../../DesignSystem/Icons";
-import { CARD_CATEGORY_ACTION, CARD_CATEGORY_PROPOSAL } from "./cardTypeOptions";
 
 import { PROPOSAL_QUERY } from "../../Queries/Proposal";
-import {
-  CREATE_TEMPLATE_MILESTONE,
-  RESOLVE_MILESTONES_FOR_BOARD,
-} from "../../Queries/Milestone";
 import { isActionCard } from "../../../lib/milestones";
 
 import {
@@ -61,18 +56,20 @@ const Section = ({
   // const sortedCards = sortBy(cards, item => item.position);
 
   const [createCardModalOpen, setCreateCardModalOpen] = useState(false);
-  const [createCardInitialCategory, setCreateCardInitialCategory] = useState("");
   const addMilestoneOpenedRef = useRef(false);
 
-  const openCreateCardModal = (category) => {
-    setCreateCardInitialCategory(category);
+  const openCreateProposalCardModal = () => {
     setCreateCardModalOpen(true);
+  };
+
+  const openCreateMilestone = () => {
+    openCard?.({ createMilestone: true, sectionId: section.id });
   };
 
   useEffect(() => {
     if (!autoOpenCreateCardAction || addMilestoneOpenedRef.current) return;
     addMilestoneOpenedRef.current = true;
-    openCreateCardModal(CARD_CATEGORY_ACTION);
+    openCreateMilestone();
     onAddMilestoneModalOpened?.();
   }, [autoOpenCreateCardAction, onAddMilestoneModalOpened]);
   const [isEditingSectionTitle, setIsEditingSectionTitle] = useState(false);
@@ -80,9 +77,6 @@ const Section = ({
 
   const client = useApolloClient();
   const [createCard, createCardState] = useMutation(CREATE_CARD);
-  const [createTemplateMilestone, createTemplateMilestoneState] = useMutation(
-    CREATE_TEMPLATE_MILESTONE
-  );
   const [updateCard, updateCardState] = useMutation(UPDATE_CARD_POSITION);
 
   const isSectionSelected = selectedSectionIds.includes(section.id);
@@ -405,55 +399,6 @@ const Section = ({
     await finishAfterCardCreate(newCard?.data?.createProposalCard?.id);
   };
 
-  const createCustomMilestone = async ({
-    title,
-    description,
-    sectionId,
-    clonedFromMilestoneId,
-    sourceFormDefinitionKey,
-    canReviewPermissionNames,
-  }) => {
-    if (!title) {
-      alert(
-        t("section.enterNewTitle", {}, { default: "Please enter a title" })
-      );
-      return null;
-    }
-
-    const result = await createTemplateMilestone({
-      variables: {
-        input: {
-          templateBoardId: boardId,
-          title,
-          description,
-          sectionId,
-          clonedFromMilestoneId,
-          sourceFormDefinitionKey,
-          canReviewPermissionNames,
-          showInFeedbackCenter: true,
-          statusTarget: "board",
-        },
-      },
-      refetchQueries: [
-        { query: PROPOSAL_QUERY, variables: { id: boardId } },
-        { query: RESOLVE_MILESTONES_FOR_BOARD, variables: { boardId } },
-      ],
-      awaitRefetchQueries: true,
-    });
-
-    // Return the created milestone (including formDefinition.id) so the
-    // modal can transition to the embedded form-editor step. The modal
-    // stays open; final close + finishAfterCardCreate happens once the
-    // user clicks Finish (via onFinishCustomMilestoneEdit below).
-    return result?.data?.createTemplateMilestone || null;
-  };
-
-  const finishCustomMilestoneEdit = async (milestone) => {
-    const actionCardId = milestone?.actionCards?.[0]?.id || null;
-    setCreateCardModalOpen(false);
-    await finishAfterCardCreate(actionCardId);
-  };
-
   const startSectionTitleEdit = () => {
     setEditingSectionTitle(section.title || "");
     setIsEditingSectionTitle(true);
@@ -670,7 +615,7 @@ const Section = ({
                   {},
                   { default: "Card" }
                 ),
-                onClick: () => openCreateCardModal(CARD_CATEGORY_PROPOSAL),
+                onClick: () => openCreateProposalCardModal(),
               },
               {
                 key: "milestone",
@@ -680,28 +625,20 @@ const Section = ({
                   {},
                   { default: "Milestone" }
                 ),
-                onClick: () => openCreateCardModal(CARD_CATEGORY_ACTION),
+                onClick: () => openCreateMilestone(),
               },
             ]}
           />
         </div>
       )}
       <CreateCardModal
-        board={board}
-        creating={
-          createCardState.loading || createTemplateMilestoneState.loading
-        }
+        creating={createCardState.loading}
         onClose={() => {
           setCreateCardModalOpen(false);
-          setCreateCardInitialCategory("");
         }}
         onCreateCard={addCardMutation}
-        onCreateCustomMilestone={createCustomMilestone}
-        onFinishCustomMilestoneEdit={finishCustomMilestoneEdit}
         open={createCardModalOpen}
         sectionId={section.id}
-        sections={sections}
-        initialCardCategory={createCardInitialCategory}
       />
     </div>
   );
