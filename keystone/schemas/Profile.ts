@@ -575,6 +575,10 @@ export const Profile = list({
       ref: "Ticket.reporter",
       many: true,
     }),
+    ticketAnnotations: relationship({
+      ref: "TicketAnnotation.author",
+      many: true,
+    }),
     assignedTickets: relationship({
       ref: "Ticket.assignee",
       many: true,

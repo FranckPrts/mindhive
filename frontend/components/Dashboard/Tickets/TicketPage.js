@@ -1,13 +1,20 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation } from "@apollo/client";
 import styled from "styled-components";
 
 import { GET_TICKET, GET_TICKETS, GET_TICKET_ASSIGNEES } from "../../Queries/Ticket";
-import { SET_TICKET_STATUS, ASSIGN_TICKET, UNASSIGN_TICKET } from "../../Mutations/Ticket";
+import {
+  SET_TICKET_STATUS,
+  ASSIGN_TICKET,
+  UNASSIGN_TICKET,
+  CREATE_TICKET_ANNOTATION,
+  DELETE_TICKET_ANNOTATION,
+} from "../../Mutations/Ticket";
 import { UserContext } from "../../Global/Authorized";
 import { getSurface } from "../../../lib/surfaces";
 import FigmaLink from "./FigmaLink";
+import ScreenshotAnnotator from "./ScreenshotAnnotator";
 import BeehiveLoading from "../../DesignSystem/BeehiveLoading";
 import Button from "../../DesignSystem/Button";
 import CopyButton from "../../DesignSystem/CopyButton";
@@ -61,6 +68,14 @@ export default function TicketPage({ id }) {
   const [assign, { loading: assigning }] = useMutation(ASSIGN_TICKET, refetch);
   const [unassign, { loading: unassigning }] = useMutation(UNASSIGN_TICKET, refetch);
   const assignees = assigneeData?.profiles ?? [];
+  const refetchTicket = { refetchQueries: [{ query: GET_TICKET, variables: { id } }] };
+  const [createAnnotation, { loading: savingAnnotation }] = useMutation(
+    CREATE_TICKET_ANNOTATION,
+    refetchTicket
+  );
+  const [deleteAnnotation] = useMutation(DELETE_TICKET_ANNOTATION, refetchTicket);
+  const [annotating, setAnnotating] = useState(false);
+  const [annotationError, setAnnotationError] = useState(null);
 
   if (loading && !data) return <BeehiveLoading />;
   if (error) return <Wrapper>Could not load this ticket: {error.message}</Wrapper>;
@@ -254,13 +269,81 @@ export default function TicketPage({ id }) {
             width={ticket.screenshot.width}
             height={ticket.screenshot.height}
           />
-          {/* 90 days mirrors SCREENSHOT_RETENTION_DAYS in the backend's
-              mutations/pruneTicketScreenshots.ts — keep the two in step. */}
-          <Caption>
-            Also copied to the ticket&apos;s Notion page. Both copies are deleted
-            automatically once the ticket has been resolved for 90 days.
-          </Caption>
+          <ShotActions>
+            <Button variant="outline" onClick={() => setAnnotating(true)} disabled={savingAnnotation}>
+              {savingAnnotation ? "Saving…" : "Add annotation"}
+            </Button>
+            {/* 90 days mirrors SCREENSHOT_RETENTION_DAYS in the backend's
+                mutations/pruneTicketScreenshots.ts — keep the two in step. */}
+            <Caption>
+              Draw on it to show what should change. Everything here is also copied
+              to the ticket&apos;s Notion page, and deleted automatically 90 days
+              after the ticket is resolved.
+            </Caption>
+          </ShotActions>
+          {annotationError && <ErrorLine role="alert">{annotationError}</ErrorLine>}
         </Section>
+      )}
+
+      {ticket.annotations?.length > 0 && (
+        <Section>
+          <h2 className="MH-Type-Title-Base">Annotations ({ticket.annotations.length})</h2>
+          <Annotations>
+            {ticket.annotations.map((annotation) => (
+              <AnnotationCard key={annotation.id}>
+                {annotation.image?.url ? (
+                  <a href={annotation.image.url} target="_blank" rel="noopener noreferrer"
+                     aria-label={`Open ${annotation.author?.username ?? "this"} markup full size — new tab`}>
+                    <AnnotationImage src={annotation.image.url} alt={annotation.note || "Annotated screenshot"} />
+                  </a>
+                ) : (
+                  // The prune removed the image with the screenshot; the note stays.
+                  <Expired>Image removed with the screenshot</Expired>
+                )}
+                <AnnotationMeta>
+                  <strong>{annotation.author?.username ?? "unknown"}</strong>
+                  <span>{formatDate(annotation.createdAt)}</span>
+                  {annotation.author?.id === user?.id && (
+                    <DeleteLink
+                      type="button"
+                      onClick={() => {
+                        // eslint-disable-next-line no-alert
+                        if (window.confirm("Delete your annotation?")) {
+                          deleteAnnotation({ variables: { id: annotation.id } });
+                        }
+                      }}
+                    >
+                      Delete
+                    </DeleteLink>
+                  )}
+                </AnnotationMeta>
+                {annotation.note && <AnnotationNote>{annotation.note}</AnnotationNote>}
+              </AnnotationCard>
+            ))}
+          </Annotations>
+        </Section>
+      )}
+
+      {annotating && ticket.screenshot?.url && (
+        <ScreenshotAnnotator
+          // Each person marks up the ORIGINAL, not someone else's markup, so no
+          // one draws over — or has to work around — anyone else's marks.
+          source={ticket.screenshot.url}
+          withNote
+          title="Annotate the screenshot"
+          onCancel={() => setAnnotating(false)}
+          onDone={async (file, _shapes, note) => {
+            setAnnotating(false);
+            setAnnotationError(null);
+            try {
+              await createAnnotation({
+                variables: { ticketId: ticket.id, authorId: user.id, note, image: file },
+              });
+            } catch (saveError) {
+              setAnnotationError(saveError.message || "The annotation could not be saved.");
+            }
+          }}
+        />
       )}
 
       <Section>
@@ -401,6 +484,88 @@ const AssigneeBar = styled.div`
     border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
     font: var(--MH-Type-Body-Base);
   }
+`;
+
+const ShotActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+`;
+
+const Annotations = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+`;
+
+const AnnotationCard = styled.figure`
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
+  background: var(--MH-Theme-Neutrals-White, #ffffff);
+`;
+
+const AnnotationImage = styled.img`
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top left;
+  border-radius: 8px;
+  border: 1px solid var(--MH-Theme-Neutrals-Lighter, #f3f3f3);
+`;
+
+const Expired = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  background: var(--MH-Theme-Neutrals-Lighter, #f3f3f3);
+  color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
+  font: var(--MH-Type-Body-Small);
+`;
+
+const AnnotationMeta = styled.figcaption`
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font: var(--MH-Type-Body-Small);
+  color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
+
+  strong {
+    font: var(--MH-Type-Label-Small);
+    color: var(--MH-Theme-Neutrals-Black, #171717);
+  }
+`;
+
+const AnnotationNote = styled.p`
+  margin: 0;
+  font: var(--MH-Type-Body-Small);
+  color: var(--MH-Theme-Neutrals-Black, #171717);
+`;
+
+const DeleteLink = styled.button`
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 0;
+  font: var(--MH-Type-Label-Small);
+  color: var(--MH-Theme-Warning-Dark, #8f1f14);
+  text-decoration: underline;
+  cursor: pointer;
+`;
+
+const ErrorLine = styled.p`
+  margin: 8px 0 0;
+  font: var(--MH-Type-Body-Small);
+  color: var(--MH-Theme-Warning-Dark, #8f1f14);
 `;
 
 const Section = styled.section`

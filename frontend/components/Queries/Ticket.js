@@ -58,6 +58,21 @@ export const GET_TICKET = gql`
         width
         height
       }
+      annotations(orderBy: [{ createdAt: asc }]) {
+        id
+        note
+        createdAt
+        author {
+          id
+          username
+        }
+        image {
+          id
+          url
+          width
+          height
+        }
+      }
     }
   }
 `;

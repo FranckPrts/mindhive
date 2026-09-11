@@ -75,17 +75,33 @@ async function pruneTicketScreenshots(
       status: { in: RESOLVED_STATUSES },
       resolvedAt: { lt: cutoff },
     },
-    query: "id title surface resolvedAt notionPageId screenshot { id }",
+    query:
+      "id title surface resolvedAt notionPageId screenshot { id } annotations { id image { id } }",
   });
 
-  const stale = candidates.filter((ticket: any) => ticket.screenshot?.id);
+  // A markup holds the same pixels as the screenshot, so it expires with it.
+  const stale = candidates.filter(
+    (ticket: any) =>
+      ticket.screenshot?.id || (ticket.annotations ?? []).some((a: any) => a.image?.id)
+  );
 
   if (!dryRun) {
     for (const ticket of stale) {
-      await context.sudo().query.Ticket.updateOne({
-        where: { id: ticket.id },
-        data: { screenshot: null },
-      });
+      if (ticket.screenshot?.id) {
+        await context.sudo().query.Ticket.updateOne({
+          where: { id: ticket.id },
+          data: { screenshot: null },
+        });
+      }
+      // The note and the author stay — a record of who said what — but the
+      // image goes, with the screenshot it was drawn on.
+      for (const annotation of ticket.annotations ?? []) {
+        if (!annotation.image?.id) continue;
+        await context.sudo().query.TicketAnnotation.updateOne({
+          where: { id: annotation.id },
+          data: { image: null },
+        });
+      }
       // The mirror uploaded a copy into Notion; expire it on the same
       // schedule, or the 90-day promise only holds for half the copies.
       // Best-effort — a Notion failure must not stop the local prune.

@@ -143,6 +143,8 @@ export const Ticket = list({
       },
     }),
     reporter: relationship({ ref: "Profile.tickets" }),
+    /** Collaborators' markups of the screenshot, one per person per save. */
+    annotations: relationship({ ref: "TicketAnnotation.ticket", many: true }),
     assignee: relationship({ ref: "Profile.assignedTickets" }),
     // Optional domain context, following Log's pattern: a ticket about a board
     // can name the board it was filed from without that becoming its identity.

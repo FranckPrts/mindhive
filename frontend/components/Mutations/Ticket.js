@@ -115,3 +115,33 @@ export const DELETE_TICKET = gql`
     }
   }
 `;
+
+// One collaborator's markup. The image is required: a markup with nothing drawn
+// is just a note, and the ticket already has a description for those.
+export const CREATE_TICKET_ANNOTATION = gql`
+  mutation CREATE_TICKET_ANNOTATION(
+    $ticketId: ID!
+    $authorId: ID!
+    $note: String
+    $image: Upload!
+  ) {
+    createTicketAnnotation(
+      data: {
+        ticket: { connect: { id: $ticketId } }
+        author: { connect: { id: $authorId } }
+        note: $note
+        image: { upload: $image }
+      }
+    ) {
+      id
+    }
+  }
+`;
+
+export const DELETE_TICKET_ANNOTATION = gql`
+  mutation DELETE_TICKET_ANNOTATION($id: ID!) {
+    deleteTicketAnnotation(where: { id: $id }) {
+      id
+    }
+  }
+`;

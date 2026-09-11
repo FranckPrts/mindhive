@@ -206,8 +206,16 @@ function screenshotsEnabled(): boolean {
   return process.env.NOTION_MIRROR_SCREENSHOTS !== "false";
 }
 
-/** Upload a ticket's screenshot into Notion and append it to the page. */
-async function attachScreenshot(notion: Client, pageId: string, screenshot: any) {
+const FILING_CAPTION =
+  "Screenshot at filing time. Removed automatically 90 days after the ticket is resolved.";
+
+/** Upload an image (a screenshot or a markup of one) into Notion and append it to the page. */
+async function attachScreenshot(
+  notion: Client,
+  pageId: string,
+  screenshot: any,
+  caption: string = FILING_CAPTION
+) {
   if (!screenshotsEnabled() || !screenshot?.id || !screenshot?.extension) return;
 
   const extension = String(screenshot.extension).toLowerCase();
@@ -237,9 +245,7 @@ async function attachScreenshot(notion: Client, pageId: string, screenshot: any)
         image: {
           type: "file_upload",
           file_upload: { id: upload.id },
-          caption: text(
-            "Screenshot at filing time. Removed automatically 90 days after the ticket is resolved."
-          ),
+          caption: text(caption),
         },
       } as any,
     ],
@@ -275,9 +281,39 @@ export async function backfillScreenshotToNotion(
 }
 
 /**
+ * Copy one collaborator's markup onto the ticket's Notion page, captioned with
+ * who drew it, when, and their note. Appended below the filing screenshot, so
+ * the page reads as the original followed by each person's markup in order.
+ * Best-effort, like the rest of the mirror.
+ */
+export async function mirrorAnnotation(context: any, annotationId: string): Promise<void> {
+  const notion = getClient();
+  if (!notion || !screenshotsEnabled()) return;
+  try {
+    const annotation = await context.sudo().query.TicketAnnotation.findOne({
+      where: { id: annotationId },
+      query: "id note createdAt author { username } image { id extension } ticket { notionPageId }",
+    });
+    if (!annotation?.ticket?.notionPageId || !annotation.image?.id) return;
+    const who = annotation.author?.username ?? "someone";
+    const when = new Date(annotation.createdAt).toISOString().slice(0, 10);
+    const note = annotation.note?.trim();
+    const caption =
+      `Annotated by ${who} on ${when}${note ? ` — ${note}` : ""}. ` +
+      "Removed with the screenshot, 90 days after the ticket is resolved.";
+    await attachScreenshot(notion, annotation.ticket.notionPageId, annotation.image, caption);
+  } catch (error: any) {
+    console.error(
+      `[notionMirror] annotation mirror failed for ${annotationId}: ${error?.message ?? error}`
+    );
+  }
+}
+
+/**
  * Remove the screenshot from a mirrored page. Called by the prune job so the
- * Notion copy expires on the same schedule as the original. The mirror only
- * ever appends one image, so every image block on the page is ours.
+ * Notion copy expires on the same schedule as the original. Every image block
+ * on a mirrored page is ours — the filing screenshot and each collaborator's
+ * markup — so removing all of them expires the markups along with it.
  */
 export async function removeScreenshotFromNotion(notionPageId: string | null): Promise<void> {
   const notion = getClient();
