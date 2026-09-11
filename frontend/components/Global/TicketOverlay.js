@@ -52,6 +52,16 @@ const PRIORITIES = [
 
 const OPEN_STATUSES = ["OPEN", "ACCEPTED", "IN_PROGRESS"];
 
+// Capitalised, and rendered as a chip: a bare lowercase "open" beside a link
+// read as the verb — as if it opened the ticket.
+const STATUS_LABELS = {
+  OPEN: "Open",
+  ACCEPTED: "Accepted",
+  IN_PROGRESS: "In progress",
+  SHIPPED: "Shipped",
+  WONTFIX: "Won't fix",
+};
+
 /**
  * Surfaces that must never be captured. A screenshot of a participant session,
  * a live class or a student's ballot can contain names and responses, so the
@@ -313,25 +323,40 @@ export default function TicketOverlay() {
               </ExistingHead>
               {openTickets.map((ticket) => (
                 <ExistingRow key={ticket.id}>
+                  {/* Three kinds of thing live in this row, and each now looks
+                      like what it is: the ticket's STATE (a chip), a way to
+                      READ it (a bordered button), and an ACTION on it (a
+                      verb). Before, all three were bare lowercase words. */}
+                  <RowTitle>{ticket.title}</RowTitle>
+
                   {/* New tab, deliberately: you are part-way through filing on
                       this page, and navigating away would lose the form. */}
-                  <ExistingLink
+                  <ViewButton
                     href={`/dashboard/tickets/${ticket.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title={`Open "${ticket.title}" in a new tab`}
+                    aria-label={`View "${ticket.title}" — opens in a new tab`}
                   >
-                    {ticket.title}
-                  </ExistingLink>
-                  <RowActions>
-                    <Tag>{ticket.status.replace("_", " ").toLowerCase()}</Tag>
+                    View details <span aria-hidden="true">↗</span>
+                  </ViewButton>
+
+                  <ExistingMeta>
+                    <StatusChip data-status={ticket.status}>
+                      <VisuallyHidden>Status: </VisuallyHidden>
+                      {STATUS_LABELS[ticket.status] ?? ticket.status}
+                    </StatusChip>
                     <Tag data-claimed={ticket.assignee ? "yes" : "no"}>
-                      {ticket.assignee ? `${ticket.assignee.username} is on it` : "unclaimed"}
+                      {ticket.assignee ? `${ticket.assignee.username} is on it` : "Unclaimed"}
                     </Tag>
-                    <LinkButton type="button" onClick={() => markShipped(ticket.id)}>
-                      shipped
-                    </LinkButton>
-                  </RowActions>
+                  </ExistingMeta>
+
+                  <MarkShipped
+                    type="button"
+                    onClick={() => markShipped(ticket.id)}
+                    title="Mark this ticket as shipped — it will close here and in Notion"
+                  >
+                    Mark as shipped
+                  </MarkShipped>
                 </ExistingRow>
               ))}
             </Existing>
@@ -577,21 +602,6 @@ const Optional = styled.span`
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
 `;
 
-const ExistingLink = styled.a`
-  color: var(--MH-Theme-Primary-Dark, #336f8a);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  overflow-wrap: anywhere;
-
-  &:hover {
-    color: var(--MH-Theme-Tertiary-Dark, #0d3944);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--MH-Theme-Accent-Base, #f2be42);
-    outline-offset: 2px;
-    border-radius: 2px;
-  }
-`;
 
 const Chord = styled.span`
   align-self: flex-start;
@@ -683,21 +693,118 @@ const ExistingHint = styled.p`
 `;
 
 const ExistingRow = styled.div`
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0;
-  font: var(--MH-Type-Body-Small);
-  color: var(--MH-Theme-Neutrals-Black, #171717);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 0;
+  /* Always present: it separates the heading from the first ticket as well as
+     tickets from each other. (A :first-of-type exception would never fire —
+     the heading above is also a div.) */
+  border-top: 1px solid var(--MH-Theme-Accent-Base, #f2be42);
 `;
 
-const RowActions = styled.div`
+const RowTitle = styled.p`
+  margin: 0;
+  font: var(--MH-Type-Label-Base);
+  color: var(--MH-Theme-Neutrals-Black, #171717);
+  overflow-wrap: anywhere;
+`;
+
+const ExistingMeta = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: none;
+  flex-wrap: wrap;
 `;
+
+/* A bordered button, not underlined text: unmistakably "go and read this",
+   and visually unlike the status chip beside it. */
+const ViewButton = styled.a`
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--MH-Theme-Primary-Dark, #336f8a);
+  background: var(--MH-Theme-Neutrals-White, #ffffff);
+  color: var(--MH-Theme-Primary-Dark, #336f8a);
+  font: var(--MH-Type-Label-Small);
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--MH-Theme-Primary-Light, #def8fb);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--MH-Theme-Primary-Dark, #336f8a);
+    outline-offset: 2px;
+  }
+`;
+
+/* The ticket's state. White with a coloured dot, NOT the board's tinted pill:
+   the board's OPEN pill is Accent-Light, the same yellow as this callout, and
+   would vanish against it. */
+const StatusChip = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 100px;
+  background: var(--MH-Theme-Neutrals-White, #ffffff);
+  color: var(--MH-Theme-Neutrals-Black, #171717);
+  font: var(--MH-Type-Label-Small);
+  white-space: nowrap;
+
+  &::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--MH-Theme-Neutrals-Medium, #a1a1a1);
+  }
+  &[data-status="OPEN"]::before {
+    background: var(--MH-Theme-Warning-Base, #b9261a);
+  }
+  &[data-status="ACCEPTED"]::before {
+    background: var(--MH-Theme-Accent-Dark, #5d5763);
+  }
+  &[data-status="IN_PROGRESS"]::before {
+    background: var(--MH-Theme-Primary-Dark, #336f8a);
+  }
+`;
+
+/* A verb, capitalised, so it reads as something you do — not as a state. */
+const MarkShipped = styled.button`
+  justify-self: end;
+  border: none;
+  background: none;
+  padding: 0;
+  font: var(--MH-Type-Label-Small);
+  color: var(--MH-Theme-Accent-Dark, #5d5763);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--MH-Theme-Success-Dark, #1d6b3a);
+  }
+`;
+
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+`;
+
 
 const Tag = styled.span`
   font: var(--MH-Type-Label-Small);
