@@ -90,23 +90,33 @@ function getClient(): Client | null {
 
 /**
  * Pages are parented to a *data source*, not a database, on 2025-09-03. The
- * data source id is resolved from the database id and cached, so `.env` holds
- * the id a human can actually copy out of a Notion URL.
+ * data source id is resolved from the database id, so `.env` holds the id a
+ * human can actually copy out of a Notion URL.
+ *
+ * Looked up on every create rather than cached, to catch a database that has
+ * been moved to Notion's trash. Notion still accepts new pages into a trashed
+ * database, so the mirror used to "succeed": the ticket got a notionPageId,
+ * and nobody could see the page. Refusing leaves notionPageId null instead —
+ * the ticket page then shows no Notion link, and the ticket's next update
+ * after the database is restored mirrors it properly. One GET per filing.
  */
-let dataSourceId: string | null = null;
 async function getDataSourceId(notion: Client): Promise<string> {
-  if (dataSourceId) return dataSourceId;
   const database: any = await notion.databases.retrieve({
     database_id: process.env.NOTION_TICKETS_DB as string,
   });
+  if (database.in_trash || database.archived) {
+    throw new Error(
+      "the Tickets database is in Notion's trash. Restore it (Notion → Trash → Tickets), " +
+        "or point NOTION_TICKETS_DB at another database."
+    );
+  }
   const sources = database.data_sources ?? [];
   if (!sources.length) {
     throw new Error(
       "Tickets database has no data source; API 2025-09-03 requires one."
     );
   }
-  dataSourceId = sources[0].id as string;
-  return dataSourceId;
+  return sources[0].id as string;
 }
 
 const text = (value: unknown) =>
