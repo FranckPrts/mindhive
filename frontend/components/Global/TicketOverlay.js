@@ -10,6 +10,7 @@ import { parseFigmaUrl, describeFigmaUrl } from "../../lib/figmaUrl";
 import { onOpenTicketPanel, announceOpenTicketCount } from "../../lib/ticketPanel";
 import { isolateFromPage } from "../../lib/isolateFromPage";
 import FigmaLink from "../Dashboard/Tickets/FigmaLink";
+import ScreenshotAnnotator from "../Dashboard/Tickets/ScreenshotAnnotator";
 import {
   CREATE_TICKET,
   CREATE_TICKET_WITH_SCREENSHOT,
@@ -52,6 +53,21 @@ const PRIORITIES = [
 ];
 
 const OPEN_STATUSES = ["OPEN", "ACCEPTED", "IN_PROGRESS"];
+
+/**
+ * An empty form — the starting state AND the reset after filing. Defined once
+ * because the two drifted: figmaDesignUrl was added to the start but not to the
+ * reset, so after filing it became undefined and "File another" crashed on
+ * `.trim()`. One constant cannot drift from itself.
+ */
+const EMPTY_FORM = {
+  title: "",
+  kind: "BUG",
+  priority: "NORMAL",
+  description: "",
+  figmaDesignUrl: "",
+  withScreenshot: true,
+};
 
 // Capitalised, and rendered as a chip: a bare lowercase "open" beside a link
 // read as the verb — as if it opened the ticket.
@@ -104,14 +120,14 @@ export default function TicketOverlay() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [filed, setFiled] = useState(null);
-  const [form, setForm] = useState({
-    title: "",
-    kind: "BUG",
-    priority: "NORMAL",
-    description: "",
-    figmaDesignUrl: "",
-    withScreenshot: true,
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
+  // The screenshot, once previewed: `base` is the raw capture, `file` what gets
+  // uploaded (the markup, if any), `shapes` what lets "Edit markup" reopen it
+  // editable rather than drawing over an already-flattened image.
+  const [shot, setShot] = useState(null);
+  const [capturing, setCapturing] = useState(false);
+  const [annotating, setAnnotating] = useState(false);
+  const [thumbUrl, setThumbUrl] = useState(null);
 
   const canManageTickets = useMemo(
     () => !!user?.permissions?.some((permission) => permission?.canManageTickets),
@@ -170,6 +186,8 @@ export default function TicketOverlay() {
     const close = () => {
       setOpen(false);
       setFiled(null);
+      setShot(null);
+      setAnnotating(false);
     };
     router.events.on("routeChangeStart", close);
     return () => router.events.off("routeChangeStart", close);
@@ -180,6 +198,17 @@ export default function TicketOverlay() {
   useEffect(() => {
     announceOpenTicketCount(canManageTickets ? openTickets.length : 0);
   }, [canManageTickets, openTickets.length]);
+
+  // A thumbnail of whatever will be attached, revoked when it changes.
+  useEffect(() => {
+    if (!shot?.file) {
+      setThumbUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(shot.file);
+    setThumbUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [shot]);
 
   if (!canManageTickets) return null;
 
@@ -215,13 +244,38 @@ export default function TicketOverlay() {
     }
   }
 
+  /**
+   * Capture now (if not already) and open the editor. Capturing early is what
+   * makes markup possible — and it also shows the reporter exactly what will be
+   * attached before it is sent, which matters when a page can show student data.
+   */
+  async function previewAndMarkUp() {
+    if (noCapture) return;
+    let current = shot;
+    if (!current) {
+      setCapturing(true);
+      setError(null);
+      const file = await capture();
+      setCapturing(false);
+      if (!file) {
+        setError("The screenshot could not be captured. You can still file without one.");
+        return;
+      }
+      current = { base: file, file, shapes: [] };
+      setShot(current);
+    }
+    setAnnotating(true);
+  }
+
   async function submit(event) {
     event.preventDefault();
     if (!form.title.trim() || !surfaceKey) return;
     setSaving(true);
     setError(null);
     try {
-      const screenshot = await capture();
+      // The previewed capture — marked up or not — if there is one; otherwise
+      // capture now, as before. Unticking the box discards either.
+      const screenshot = form.withScreenshot && shot ? shot.file : await capture();
       const variables = {
         surface: surfaceKey,
         title: form.title.trim(),
@@ -246,13 +300,8 @@ export default function TicketOverlay() {
         id: result?.data?.createTicket?.id,
         withScreenshot: !!screenshot,
       });
-      setForm({
-        title: "",
-        kind: "BUG",
-        priority: "NORMAL",
-        description: "",
-        withScreenshot: true,
-      });
+      setForm(EMPTY_FORM);
+      setShot(null);
       await refetch();
     } catch (submitError) {
       setError(submitError.message || "Could not file the ticket.");
@@ -466,17 +515,46 @@ export default function TicketOverlay() {
                   you saw instead.
                 </Notice>
               ) : (
-                <Checkbox>
-                  <input
-                    id="mh-ticket-screenshot"
-                    type="checkbox"
-                    checked={form.withScreenshot}
-                    onChange={set("withScreenshot")}
-                  />
-                  <label htmlFor="mh-ticket-screenshot">
-                    Attach a screenshot of this page
-                  </label>
-                </Checkbox>
+                <>
+                  <Checkbox>
+                    <input
+                      id="mh-ticket-screenshot"
+                      type="checkbox"
+                      checked={form.withScreenshot}
+                      onChange={set("withScreenshot")}
+                    />
+                    <label htmlFor="mh-ticket-screenshot">
+                      Attach a screenshot of this page
+                    </label>
+                  </Checkbox>
+                  {form.withScreenshot && (
+                    <ShotRow>
+                      {thumbUrl && (
+                        <Thumb>
+                          <img src={thumbUrl} alt="The screenshot that will be attached" />
+                          {shot?.shapes?.length > 0 && <ThumbBadge>Marked up</ThumbBadge>}
+                        </Thumb>
+                      )}
+                      <ShotActions>
+                        <ShotButton type="button" onClick={previewAndMarkUp} disabled={capturing}>
+                          {capturing
+                            ? "Capturing…"
+                            : shot?.shapes?.length
+                              ? "Edit markup"
+                              : "Preview & mark up"}
+                        </ShotButton>
+                        {shot && (
+                          <LinkButton type="button" onClick={() => setShot(null)}>
+                            Retake
+                          </LinkButton>
+                        )}
+                        {!shot && (
+                          <ShotHint>Optional — circle what is wrong, add arrows and notes.</ShotHint>
+                        )}
+                      </ShotActions>
+                    </ShotRow>
+                  )}
+                </>
               )}
 
               {error && <Notice tone="error">{error}</Notice>}
@@ -496,6 +574,19 @@ export default function TicketOverlay() {
             </form>
           )}
         </Panel>
+      )}
+
+      {annotating && shot && (
+        <ScreenshotAnnotator
+          source={shot.base}
+          initialShapes={shot.shapes}
+          title="Mark up the screenshot"
+          onDone={(file, shapes) => {
+            setShot({ base: shot.base, file, shapes });
+            setAnnotating(false);
+          }}
+          onCancel={() => setAnnotating(false)}
+        />
       )}
     </>
   );
@@ -617,6 +708,75 @@ const Chord = styled.span`
   color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
   font: var(--MH-Type-Label-Small);
   white-space: nowrap;
+`;
+
+const ShotRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 4px 26px; /* aligned under the checkbox label */
+`;
+
+const Thumb = styled.span`
+  position: relative;
+  flex: none;
+  display: block;
+  width: 96px;
+  height: 60px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
+  background: var(--MH-Theme-Neutrals-Lighter, #f3f3f3);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top left;
+    display: block;
+  }
+`;
+
+const ThumbBadge = styled.span`
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 6px;
+  border-radius: 100px;
+  background: var(--MH-Theme-Warning-Base, #b9261a);
+  color: var(--MH-Theme-Neutrals-White, #ffffff);
+  font: var(--MH-Type-Label-Small);
+  line-height: 16px;
+`;
+
+const ShotActions = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+`;
+
+const ShotButton = styled.button`
+  padding: 6px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--MH-Theme-Primary-Dark, #336f8a);
+  background: var(--MH-Theme-Neutrals-White, #ffffff);
+  color: var(--MH-Theme-Primary-Dark, #336f8a);
+  font: var(--MH-Type-Label-Small);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--MH-Theme-Primary-Light, #def8fb);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+`;
+
+const ShotHint = styled.span`
+  font: var(--MH-Type-Body-Small);
+  color: var(--MH-Theme-Neutrals-Dark, #6a6a6a);
 `;
 
 const Hint = styled.p`
