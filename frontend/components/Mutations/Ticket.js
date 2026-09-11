@@ -22,6 +22,7 @@ const CREATE_VARS = `
   $evidence: JSON
   $reporterId: ID!
   $figmaDesignUrl: String
+  $supportTickets: JSON
 `;
 
 const CREATE_FIELDS = `
@@ -33,6 +34,7 @@ const CREATE_FIELDS = `
   evidence: $evidence
   reporter: { connect: { id: $reporterId } }
   figmaDesignUrl: $figmaDesignUrl
+  supportTickets: $supportTickets
 `;
 
 const CREATED = `
@@ -96,6 +98,18 @@ export const UNASSIGN_TICKET = gql`
         id
         username
       }
+    }
+  }
+`;
+
+// The whole list, not an add or a remove: a json field is replaced whole. The
+// backend works out what changed, and applies only that to the Notion page's
+// relation, so links made directly in Notion survive.
+export const SET_TICKET_SUPPORT_TICKETS = gql`
+  mutation SET_TICKET_SUPPORT_TICKETS($id: ID!, $supportTickets: JSON) {
+    updateTicket(where: { id: $id }, data: { supportTickets: $supportTickets }) {
+      id
+      supportTickets
     }
   }
 `;

@@ -50,6 +50,7 @@ export const GET_TICKET = gql`
       evidence
       figmaNodeId
       notionPageId
+      supportTickets
       updatedAt
       resolvedAt
       screenshot {
@@ -88,6 +89,21 @@ export const GET_TICKET_ASSIGNEES = gql`
     ) {
       id
       username
+    }
+  }
+`;
+
+// What pasted support-ticket links point at: each one's title, and whether it
+// is really a page in the Support tickets database (`state`, see
+// SupportTickets.js). Checked with Notion by the backend, so it needs the
+// integration to be able to see that database.
+export const SUPPORT_TICKET_PREVIEWS = gql`
+  query SUPPORT_TICKET_PREVIEWS($urls: [String!]!) {
+    supportTicketPreviews(urls: $urls) {
+      url
+      pageId
+      title
+      state
     }
   }
 `;

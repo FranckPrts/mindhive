@@ -1,6 +1,7 @@
 import { Client } from "@notionhq/client";
 import { readFile } from "fs/promises";
 import path from "path";
+import { notionPageIdFromUrl, sameNotionId } from "./notionUrl";
 
 /**
  * Mirrors tickets into Notion, one way.
@@ -19,9 +20,12 @@ import path from "path";
  * Config (keystone/.env):
  *   NOTION_KEY         internal integration secret
  *   NOTION_TICKETS_DB  the database id (not the data source id — see below)
+ *   NOTION_SUPPORT_TICKETS_DB  optional: the Support tickets database, whose
+ *                      pages a ticket can link to. Needs the "Support tickets"
+ *                      relation, made once by scripts/setup-notion-support-relation.js
  *
- * With either missing the mirror silently does nothing, so a developer without
- * Notion credentials can still file tickets locally.
+ * With either of the first two missing the mirror silently does nothing, so a
+ * developer without Notion credentials can still file tickets locally.
  */
 
 // The same API version pins as the frontend's /api/notion route.
@@ -40,6 +44,8 @@ const PROP = {
   link: "Link",
   design: "Design",
   assignee: "Assignee",
+  /** A relation to the Support tickets database; see mirrorSupportTickets. */
+  support: "Support tickets",
 } as const;
 
 /** Keystone enum -> the option names in the Notion select. */
@@ -407,13 +413,178 @@ export async function removeScreenshotFromNotion(notionPageId: string | null): P
   }
 }
 
+/* ---- support tickets ---------------------------------------------------- */
+
+/**
+ * A ticket links support tickets — pages in the Support tickets database — and
+ * the mirror shows them as the "Support tickets" relation, which Notion also
+ * shows from the other side as "Platform tickets" on each support ticket.
+ *
+ * Unlike every other property, this one is not overwritten from MindHive.
+ * People already link support tickets by hand in Notion, and a relation is
+ * easy to edit there, so the mirror applies MindHive's CHANGES — the links
+ * added and removed on the platform — to whatever the page already has. A link
+ * made directly in Notion is never removed by the mirror. (It does not show on
+ * the platform either: this stays a one-way mirror.)
+ */
+
+function supportDatabaseId(): string | null {
+  return process.env.NOTION_SUPPORT_TICKETS_DB || null;
+}
+
+/** The field arrives parsed through the API, but as a JSON string from a raw SQLite row. */
+function supportLinks(value: unknown): string[] {
+  let list = value;
+  if (typeof list === "string") {
+    try {
+      list = JSON.parse(list);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(list) ? list.filter((link) => typeof link === "string") : [];
+}
+
+function supportIds(value: unknown): string[] {
+  return supportLinks(value)
+    .map((link) => notionPageIdFromUrl(link))
+    .filter((id): id is string => !!id);
+}
+
+/** The page's current relation, or null if the property has not been set up. */
+async function currentSupportIds(notion: Client, pageId: string): Promise<string[] | null> {
+  const page: any = await notion.pages.retrieve({ page_id: pageId });
+  const property = page.properties?.[PROP.support];
+  if (!property || property.type !== "relation") return null;
+  if (!property.has_more) return (property.relation ?? []).map((r: any) => r.id);
+  // More than 25 related pages: the page object is truncated, so page through.
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const res: any = await notion.pages.properties.retrieve({
+      page_id: pageId,
+      property_id: property.id,
+      start_cursor: cursor,
+    });
+    ids.push(...(res.results ?? []).map((item: any) => item.relation?.id).filter(Boolean));
+    cursor = res.has_more ? res.next_cursor : undefined;
+  } while (cursor);
+  return ids;
+}
+
+/**
+ * Apply added and removed links to the page's relation, keeping any other
+ * link already there. Best-effort: Notion refuses the whole write if one page
+ * is outside the Support tickets database or not shared with the integration,
+ * and that must not affect anything else the mirror does.
+ */
+async function writeSupportRelation(
+  notion: Client,
+  pageId: string,
+  before: string[],
+  after: string[],
+  ticketId: string
+): Promise<void> {
+  if (!supportDatabaseId()) return;
+  const added = after.filter((id) => !before.some((b) => sameNotionId(b, id)));
+  const removed = before.filter((id) => !after.some((a) => sameNotionId(a, id)));
+  if (!added.length && !removed.length) return;
+  try {
+    const current = await currentSupportIds(notion, pageId);
+    if (current === null) {
+      console.error(
+        `[notionMirror] the Tickets database has no "${PROP.support}" relation; ` +
+          "run scripts/setup-notion-support-relation.js"
+      );
+      return;
+    }
+    const next = [
+      ...current.filter((id) => !removed.some((r) => sameNotionId(r, id))),
+      ...added.filter((id) => !current.some((c) => sameNotionId(c, id))),
+    ];
+    await notion.pages.update({
+      page_id: pageId,
+      properties: { [PROP.support]: { relation: next.map((id) => ({ id })) } } as any,
+    });
+  } catch (error: any) {
+    console.error(
+      `[notionMirror] support tickets not linked for ticket ${ticketId}: ${error?.message ?? error}`
+    );
+  }
+}
+
+/** After a ticket's support links change: carry the change to its Notion page. */
+export async function mirrorSupportTickets(
+  context: any,
+  ticketId: string,
+  before: unknown
+): Promise<void> {
+  const notion = getClient();
+  if (!notion || !supportDatabaseId()) return;
+  try {
+    const ticket = await loadTicket(context, ticketId);
+    if (!ticket) return;
+    // Never mirrored (Notion was down when it was filed): as in mirrorUpdate,
+    // treat this as the create it never got, which links them all.
+    if (!ticket.notionPageId) {
+      await mirrorCreate(context, ticketId);
+      return;
+    }
+    await writeSupportRelation(
+      notion,
+      ticket.notionPageId,
+      supportIds(before),
+      supportIds(ticket.supportTickets),
+      ticketId
+    );
+  } catch (error: any) {
+    console.error(
+      `[notionMirror] support tickets not linked for ticket ${ticketId}: ${error?.message ?? error}`
+    );
+  }
+}
+
+/**
+ * What each pasted link points at, so the platform can show a support
+ * ticket's title and flag a link that will not work before it is relied on.
+ *   ok             a page in the Support tickets database
+ *   not-support    a Notion page, but not a support ticket
+ *   not-visible    no such page, or not shared with the integration
+ *   invalid        not a link to a Notion page
+ *   unchecked      Notion or the Support tickets database is not configured
+ */
+export async function previewSupportTickets(urls: string[]) {
+  const notion = getClient();
+  const database = supportDatabaseId();
+  return Promise.all(
+    urls.map(async (url) => {
+      const pageId = notionPageIdFromUrl(url);
+      if (!pageId) return { url, pageId: null, title: null, state: "invalid" };
+      if (!notion || !database) return { url, pageId, title: null, state: "unchecked" };
+      try {
+        const page: any = await notion.pages.retrieve({ page_id: pageId });
+        if (page.in_trash) return { url, pageId, title: null, state: "not-visible" };
+        const titleProperty: any = Object.values(page.properties ?? {}).find(
+          (property: any) => property.type === "title"
+        );
+        const title =
+          (titleProperty?.title ?? []).map((part: any) => part.plain_text).join("") || null;
+        const inSupport = sameNotionId(page.parent?.database_id, database);
+        return { url, pageId, title, state: inSupport ? "ok" : "not-support" };
+      } catch {
+        return { url, pageId, title: null, state: "not-visible" };
+      }
+    })
+  );
+}
+
 /** Load the fields the mirror needs, with the reporter resolved. */
 async function loadTicket(context: any, id: string) {
   return context.sudo().query.Ticket.findOne({
     where: { id },
     query: `
       id title surface kind status priority body createdAt notionPageId
-      figmaDesignUrl
+      figmaDesignUrl supportTickets
       reporter { username }
       assignee { username }
       screenshot { id extension }
@@ -453,6 +624,10 @@ export async function mirrorCreate(context: any, ticketId: string): Promise<void
         `[notionMirror] screenshot upload failed for ticket ${ticketId}: ${error?.message ?? error}`
       );
     }
+
+    // Separate from the create for the same reason: one link Notion refuses
+    // must not cost the ticket its page.
+    await writeSupportRelation(notion, page.id, [], supportIds(ticket.supportTickets), ticketId);
   } catch (error: any) {
     console.error(
       `[notionMirror] create failed for ticket ${ticketId}: ${error?.message ?? error}`

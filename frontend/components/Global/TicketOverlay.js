@@ -7,10 +7,15 @@ import { UserContext } from "./Authorized";
 import Button from "../DesignSystem/Button";
 import { surfaceForRoute } from "../../lib/surfaces";
 import { parseFigmaUrl, describeFigmaUrl } from "../../lib/figmaUrl";
+import { parseNotionPageUrl } from "../../lib/notionUrl";
 import { onOpenTicketPanel, announceOpenTicketCount } from "../../lib/ticketPanel";
 import { isolateFromPage } from "../../lib/isolateFromPage";
 import FigmaLink from "../Dashboard/Tickets/FigmaLink";
 import ScreenshotAnnotator from "../Dashboard/Tickets/ScreenshotAnnotator";
+import {
+  useSupportTicketPreviews,
+  supportTicketHint,
+} from "../Dashboard/Tickets/SupportTickets";
 import {
   CREATE_TICKET,
   CREATE_TICKET_WITH_SCREENSHOT,
@@ -66,6 +71,7 @@ const EMPTY_FORM = {
   priority: "NORMAL",
   description: "",
   figmaDesignUrl: "",
+  supportTicketUrl: "",
   withScreenshot: true,
 };
 
@@ -142,6 +148,14 @@ export default function TicketOverlay() {
   const figmaSummary = describeFigmaUrl(form.figmaDesignUrl);
   const figmaHasNode = !!figmaParsed?.nodeId;
   const figmaInvalid = form.figmaDesignUrl.trim() !== "" && !figmaSummary;
+
+  // One support ticket at filing; more can be linked on the ticket page.
+  const supportUrl = form.supportTicketUrl.trim();
+  const supportInvalid = supportUrl !== "" && !parseNotionPageUrl(supportUrl);
+  const { byUrl: supportPreviews, loading: supportChecking } = useSupportTicketPreviews(
+    supportUrl ? [supportUrl] : []
+  );
+  const supportHint = supportTicketHint(supportUrl, supportPreviews.get(supportUrl), supportChecking);
 
   const { data, refetch } = useQuery(GET_TICKETS_FOR_SURFACE, {
     variables: { surface: surfaceKey },
@@ -279,6 +293,11 @@ export default function TicketOverlay() {
       document.getElementById("mh-ticket-figma")?.focus();
       return;
     }
+    if (supportInvalid) {
+      setError("That support ticket link is not a Notion link. Fix it or clear it to file the ticket.");
+      document.getElementById("mh-ticket-support")?.focus();
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -299,6 +318,7 @@ export default function TicketOverlay() {
         // the mistaken belief that "" would fail that check — it failed
         // every ticket filed without a link instead.)
         figmaDesignUrl: form.figmaDesignUrl.trim(),
+        supportTickets: supportUrl ? [supportUrl] : [],
       };
       const result = screenshot
         ? await createTicketWithScreenshot({
@@ -514,6 +534,28 @@ export default function TicketOverlay() {
                   <Hint id="mh-ticket-figma-hint" tone="warn">
                     No frame selected — the link opens the whole file. Select the
                     frame in Figma and copy the link again to point at it.
+                  </Hint>
+                )}
+              </Field>
+
+              <Field>
+                <label htmlFor="mh-ticket-support">
+                  Related support ticket <Optional>optional</Optional>
+                </label>
+                <input
+                  id="mh-ticket-support"
+                  type="url"
+                  value={form.supportTicketUrl}
+                  onChange={set("supportTicketUrl")}
+                  placeholder="Paste the support ticket's Notion link"
+                  aria-describedby="mh-ticket-support-hint"
+                  aria-invalid={supportInvalid || undefined}
+                />
+                {/* Checked with Notion as it is pasted, so a link that will not
+                    link shows up here rather than silently in the mirror. */}
+                {supportHint && (
+                  <Hint id="mh-ticket-support-hint" tone={supportHint.tone}>
+                    {supportHint.text}
                   </Hint>
                 )}
               </Field>

@@ -15,6 +15,7 @@ import { UserContext } from "../../Global/Authorized";
 import { getSurface } from "../../../lib/surfaces";
 import FigmaLink from "./FigmaLink";
 import ScreenshotAnnotator from "./ScreenshotAnnotator";
+import SupportTickets from "./SupportTickets";
 import BeehiveLoading from "../../DesignSystem/BeehiveLoading";
 import Button from "../../DesignSystem/Button";
 import CopyButton from "../../DesignSystem/CopyButton";
@@ -237,6 +238,11 @@ export default function TicketPage({ id }) {
           </Caption>
         )}
       </AssigneeBar>
+
+      <Section>
+        <h2 className="MH-Type-Title-Base">Support tickets</h2>
+        <SupportTickets ticket={ticket} />
+      </Section>
 
       {CLOSEABLE.includes(ticket.status) && (
         <Section>

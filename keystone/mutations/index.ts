@@ -68,6 +68,7 @@ import backfillTicketPermissions from "./backfillTicketPermissions";
 import pruneTicketScreenshots from "./pruneTicketScreenshots";
 import closeTicketsFromCommit from "./closeTicketsFromCommit";
 import ticketForAgent from "./ticketForAgent";
+import supportTicketPreviews from "./supportTicketPreviews";
 import backfillTicketScreenshotsToNotion from "./backfillTicketScreenshotsToNotion";
 import backfillProjectBoardFormScope from "./backfillProjectBoardFormScope";
 import backfillProposalBoardPublicIds from "./backfillProposalBoardPublicIds";
@@ -375,6 +376,14 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         email: String
         classNetwork: NetworkInviteContextNetwork
       }
+      # state: ok | not-support | not-visible | invalid | unchecked.
+      # See previewSupportTickets in lib/notionMirror.ts.
+      type SupportTicketPreview {
+        url: String!
+        pageId: String
+        title: String
+        state: String!
+      }
       type AgentTicket {
         id: ID!
         title: String!
@@ -402,6 +411,8 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         authenticated, read-only, single-id. See mutations/ticketForAgent.ts.
         """
         ticketForAgent(secret: String!, id: ID!): AgentTicket
+        # What pasted support-ticket links point at. canManageTickets only.
+        supportTicketPreviews(urls: [String!]!): [SupportTicketPreview!]!
         resolveMilestonesForBoard(boardId: ID!): [Milestone!]!
         # Resolve the most-specific published FormDefinition for the
         # current viewer's scope. Pass any subset of the scope IDs the
@@ -460,6 +471,7 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
       Opportunity: opportunityMultiselectResolvers,
       Query: {
         ticketForAgent,
+        supportTicketPreviews,
         resolveFormDefinition,
         resolveMilestonesForBoard,
         networkInviteContext,

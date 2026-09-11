@@ -11,9 +11,11 @@ import { permissions } from "../access";
 import {
   mirrorCreate,
   mirrorUpdate,
+  mirrorSupportTickets,
   touchesMirroredField,
   trashNotionPage,
 } from "../lib/notionMirror";
+import { assertSupportTicketLinks } from "../lib/notionUrl";
 
 /**
  * A platform ticket, filed from the page it is about.
@@ -134,6 +136,17 @@ export const Ticket = list({
      * same fact would only drift apart.
      */
     figmaDesignUrl: text(),
+    /**
+     * Support tickets this ticket answers — pages in the Notion Support
+     * tickets database, which the Help Center's support form feeds. A list of
+     * their Notion links, as pasted.
+     *
+     * Links, not page ids, for the same reason as figmaDesignUrl: a link is
+     * what a person can click, and the id is derived wherever it is needed
+     * (`lib/notionUrl.ts`). The mirror turns them into the Notion page's
+     * "Support tickets" relation.
+     */
+    supportTickets: json(),
     /** Figma frame captured from this surface while resolving the ticket. */
     figmaNodeId: text(),
     /** Set by the Notion mirror, never by a human. */
@@ -158,8 +171,16 @@ export const Ticket = list({
     resolvedAt: timestamp(),
   },
   hooks: {
-    resolveInput: ({ operation, resolvedData, item }) => {
+    resolveInput: ({ operation, resolvedData, inputData, item }) => {
       const data: Record<string, unknown> = { ...resolvedData };
+
+      // Checked against the raw input rather than resolvedData: on SQLite the
+      // json field has already turned the list into a string by this point.
+      // Refusing a wrong paste here means it fails where it was made, rather
+      // than later and silently in the Notion mirror.
+      if (inputData.supportTickets !== undefined) {
+        assertSupportTicketLinks(inputData.supportTickets);
+      }
 
       if (operation === "update") {
         data.updatedAt = new Date().toISOString();
@@ -240,6 +261,11 @@ export const Ticket = list({
       }
       if (operation === "update" && touchesMirroredField(resolvedData ?? {})) {
         await mirrorUpdate(context, String(id));
+      }
+      // Its own path: the relation is edited as a change (links added and
+      // removed here), not overwritten, so links made directly in Notion stay.
+      if (operation === "update" && resolvedData?.supportTickets !== undefined) {
+        await mirrorSupportTickets(context, String(id), (originalItem as any)?.supportTickets);
       }
     },
   },
