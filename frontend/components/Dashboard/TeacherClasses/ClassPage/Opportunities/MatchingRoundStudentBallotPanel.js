@@ -12,7 +12,12 @@ import styled from "styled-components";
 import Chip from "../../../../DesignSystem/Chip";
 import Button from "../../../../DesignSystem/Button";
 import DefinitionForm from "../../../../Forms/DefinitionForm";
-import { StarFilledIcon, StarIcon, UnlockIcon } from "../../../../DesignSystem/Icons";
+import {
+  PencilIcon,
+  StarFilledIcon,
+  StarIcon,
+  UnlockIcon,
+} from "../../../../DesignSystem/Icons";
 import ButtonGroup from "../../../../DesignSystem/ButtonGroup";
 import { TEACHER_STUDENT_BALLOT_VIEW } from "../../../../Queries/ConnectMatch";
 import { UPDATE_PREFERENCE } from "../../../../Mutations/ConnectPreference";
@@ -33,6 +38,7 @@ import { getMatchingQueue } from "../../../../../lib/connectPreferenceMatchingPr
 import { downloadStudentBallotCsv } from "../../../../../lib/downloadStudentBallotCsv";
 import MessageCard from "../../../../DesignSystem/MessageCard";
 import Modal from "../../../../DesignSystem/Modal";
+import StudentPreferenceSubmission from "../../../StudentClasses/ClassPage/Opportunities/StudentPreferenceSubmission";
 
 const STUDENT_RANKING_SUB_MODES = {
   ballot: "ballot",
@@ -150,7 +156,7 @@ const RowActions = styled.div`
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 8px;
 `;
 
@@ -274,7 +280,9 @@ function StudentBallotRow({
   activePickCount = 0,
   assessmentFormDefinition,
   handleReopenBallot,
+  handleEditBallot,
   reopeningPreferenceId,
+  ballotWindowActive = true,
   t,
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -352,11 +360,19 @@ function StudentBallotRow({
 
   const canReopenBallot =
     row.preference?.status === "submitted" && Boolean(row.preference?.id);
+  const isMatched = row.submissionStatus === "matched";
+  const canEditBallot = !isMatched;
   const isReopening = reopeningPreferenceId === row.preference?.id;
+  const reopenDisabled = isReopening || !ballotWindowActive;
 
   const handleReopenClick = () => {
-    if (!canReopenBallot || isReopening) return;
+    if (!canReopenBallot || reopenDisabled) return;
     handleReopenBallot(row.preference.id, displayName(row.student));
+  };
+
+  const handleEditClick = () => {
+    if (!canEditBallot) return;
+    handleEditBallot(row);
   };
 
   const expandLabel = expanded
@@ -632,18 +648,58 @@ function StudentBallotRow({
               </DetailList>
             )}
           </DetailSection>
-          {canReopenBallot ? (
-            <Button
-              type="button"
-              variant="tonal"
-              leadingIcon={<UnlockIcon />}
-              onClick={handleReopenClick}
-              disabled={isReopening}
-            >
-              {t("opportunities.matchingRound.studentRanking.reopenBallot", {}, {
-                default: "Reopen ballot",
-              })}
-            </Button>
+          {canReopenBallot || canEditBallot ? (
+            <RowActions>
+              {canReopenBallot ? (
+                <Button
+                  type="button"
+                  variant="tonal"
+                  leadingIcon={<UnlockIcon />}
+                  onClick={handleReopenClick}
+                  disabled={reopenDisabled}
+                  title={
+                    !ballotWindowActive
+                      ? t(
+                          "opportunities.matchingRound.studentRanking.reopenBallotDisabledWindowClosed",
+                          {},
+                          {
+                            default:
+                              "Cannot reopen a ballot after the student ranking window has closed. Use Edit ballot instead.",
+                          },
+                        )
+                      : undefined
+                  }
+                >
+                  {t("opportunities.matchingRound.studentRanking.reopenBallot", {}, {
+                    default: "Reopen ballot",
+                  })}
+                </Button>
+              ) : null}
+              {canEditBallot ? (
+                <Button
+                  type="button"
+                  variant="tonal"
+                  leadingIcon={<PencilIcon />}
+                  onClick={handleEditClick}
+                  title={
+                    isMatched
+                      ? t(
+                          "opportunities.matchingRound.studentRanking.editBallotDisabledMatched",
+                          {},
+                          {
+                            default:
+                              "Cannot edit a ballot after the student has been matched.",
+                          },
+                        )
+                      : undefined
+                  }
+                >
+                  {t("opportunities.matchingRound.studentRanking.editBallot", {}, {
+                    default: "Edit ballot",
+                  })}
+                </Button>
+              ) : null}
+            </RowActions>
           ) : null}
           {row.preference?.submittedAt ? (
             <Meta>
@@ -740,6 +796,7 @@ const MatchingRoundStudentBallotPanel = forwardRef(
   const [reopeningPreferenceId, setReopeningPreferenceId] = useState(null);
   const [reopenFeedback, setReopenFeedback] = useState(null);
   const [reopenTarget, setReopenTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
 
   const { data, loading, refetch } = useQuery(TEACHER_STUDENT_BALLOT_VIEW, {
     variables: { roundId },
@@ -869,9 +926,63 @@ const MatchingRoundStudentBallotPanel = forwardRef(
   );
 
   const handleReopenBallot = useCallback((preferenceId, studentName) => {
+    if (!ballotWindowActive) return;
     setReopenFeedback(null);
     setReopenTarget({ preferenceId, studentName });
+  }, [ballotWindowActive]);
+
+  const handleEditBallot = useCallback((row) => {
+    if (!row?.student?.id || row.submissionStatus === "matched") return;
+    setEditTarget({
+      student: row.student,
+      preference: row.preference || null,
+    });
   }, []);
+
+  const closeEditBallotModal = useCallback(() => {
+    setEditTarget(null);
+  }, []);
+
+  const handleEditBallotSaved = useCallback(async () => {
+    await refetch();
+    setEditTarget(null);
+    setReopenFeedback({
+      variant: "success",
+      message: t(
+        "opportunities.matchingRound.studentRanking.editBallotSubmitSuccess",
+        {},
+        { default: "Student ballot saved." },
+      ),
+    });
+  }, [refetch, t]);
+
+  const handleEditBallotStaffRefetch = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  const editStaffForStudent = useMemo(() => {
+    if (!editTarget?.student?.id) return null;
+    const studentId = editTarget.student.id;
+    const preference =
+      prefByStudentId.get(studentId) || editTarget.preference || null;
+    const studentTeamPreferences = (teamPreferences || []).filter(
+      (tp) => tp.submitter?.id === studentId,
+    );
+    const questionAnswers = (round?.questionAnswers || []).filter(
+      (qa) => qa.respondent?.id === studentId,
+    );
+    return {
+      id: studentId,
+      preference,
+      teamPreferences: studentTeamPreferences,
+      questionAnswers,
+    };
+  }, [
+    editTarget,
+    prefByStudentId,
+    round?.questionAnswers,
+    teamPreferences,
+  ]);
 
   const closeReopenModal = useCallback(() => {
     if (reopeningPreferenceId) return;
@@ -880,7 +991,7 @@ const MatchingRoundStudentBallotPanel = forwardRef(
 
   const confirmReopenBallot = useCallback(async () => {
     const preferenceId = reopenTarget?.preferenceId;
-    if (!preferenceId) return;
+    if (!preferenceId || !ballotWindowActive) return;
 
     setReopenFeedback(null);
     setReopeningPreferenceId(preferenceId);
@@ -921,7 +1032,7 @@ const MatchingRoundStudentBallotPanel = forwardRef(
     } finally {
       setReopeningPreferenceId(null);
     }
-  }, [refetch, reopenTarget, t, updatePreference]);
+  }, [ballotWindowActive, refetch, reopenTarget, t, updatePreference]);
 
   const submittedCount = ballotRows.filter(
     (r) => r.submissionStatus === "submitted",
@@ -1277,6 +1388,31 @@ const MatchingRoundStudentBallotPanel = forwardRef(
           </p>
         </Modal>
 
+        <Modal
+          open={Boolean(editTarget)}
+          onClose={closeEditBallotModal}
+          size="large"
+          maxWidth={1100}
+          maxHeight="92vh"
+          height="92vh"
+          title={t(
+            "opportunities.matchingRound.studentRanking.editBallotTitle",
+            { name: displayName(editTarget?.student) },
+            { default: "Edit {{name}}’s ballot" },
+          )}
+          bodyStyle={{ display: "flex", flexDirection: "column", minHeight: 0 }}
+        >
+          {editStaffForStudent && roundId ? (
+            <StudentPreferenceSubmission
+              roundId={roundId}
+              staffForStudent={editStaffForStudent}
+              onBack={closeEditBallotModal}
+              onSaved={handleEditBallotSaved}
+              onStaffRefetch={handleEditBallotStaffRefetch}
+            />
+          ) : null}
+        </Modal>
+
         <BallotList>
           {sortedRows.length === 0 ? (
             <EmptyNote>
@@ -1296,7 +1432,9 @@ const MatchingRoundStudentBallotPanel = forwardRef(
                 activePickCount={activePickCount}
                 assessmentFormDefinition={assessmentFormDefinition}
                 handleReopenBallot={handleReopenBallot}
+                handleEditBallot={handleEditBallot}
                 reopeningPreferenceId={reopeningPreferenceId}
+                ballotWindowActive={ballotWindowActive}
                 t={t}
               />
             ))
