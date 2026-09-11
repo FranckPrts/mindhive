@@ -154,6 +154,9 @@ export const GET_TEMPLATE_BOARD_SECTIONS_CARDS = gql`
           publicId
           position
           type
+          milestone {
+            id
+          }
         }
       }
     }
@@ -351,6 +354,16 @@ export const GET_CARD_CONTENT = gql`
         title
         content
         settings
+        isPublic
+        parent {
+          id
+        }
+        author {
+          id
+        }
+        collaborators {
+          id
+        }
       }
       assignments {
         id

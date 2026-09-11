@@ -437,7 +437,12 @@ export default function LinkedItemCard({
             <button
               onClick={() =>
                 openResourceModal?.(item, {
-                  sourceType: tabIsPublic ? "public" : item?.parent?.id ? "custom" : "mine",
+                  sourceType:
+                    item?.isPublic || tabIsPublic
+                      ? "public"
+                      : item?.parent?.id
+                        ? "custom"
+                        : "mine",
                 })
               }
               style={{
