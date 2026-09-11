@@ -15,6 +15,10 @@
  * Needs NOTION_KEY, NOTION_TICKETS_DB and NOTION_SUPPORT_TICKETS_DB in
  * keystone/.env, and the Support tickets database shared with the same
  * integration as the Tickets database (in Notion: ••• → Connections).
+ *
+ * Then restart Keystone so it reads NOTION_SUPPORT_TICKETS_DB, and run the
+ * backfillSupportTicketsToNotion mutation to link the support tickets saved
+ * on the platform before the relation existed.
  */
 require("dotenv").config();
 const { Client } = require("@notionhq/client");
@@ -85,7 +89,10 @@ async function main() {
       },
     },
   });
-  console.log("Done.");
+  console.log(
+    "Done. Restart Keystone, then run the backfillSupportTicketsToNotion mutation to link " +
+      "support tickets saved before now."
+  );
 }
 
 main().catch((error) => {

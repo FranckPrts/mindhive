@@ -62,8 +62,13 @@ export function supportTicketHint(url, preview, loading) {
         text: "Notion cannot find that page from here. It may be in the trash, or not shared with the integration.",
       };
     default:
-      // "unchecked": Notion is not configured here, so the link is taken on trust.
-      return { tone: "neutral", text: `Links to ${name ? `“${name}”` : "a Notion page"}` };
+      // "unchecked": the Support tickets database is not connected (or Notion
+      // is not configured at all). Said outright — a plain "Links to …" here
+      // read as done, and people went looking for the link in Notion.
+      return {
+        tone: "neutral",
+        text: `Links to ${name ? `“${name}”` : "a Notion page"} here. Not in Notion yet: the Support tickets database is not connected to the platform.`,
+      };
   }
 }
 
@@ -83,6 +88,9 @@ export default function SupportTickets({ ticket }) {
     ? { tone: "warn", text: "Already linked." }
     : supportTicketHint(trimmed, byUrl.get(trimmed), loading);
   const canAdd = !!parseNotionPageUrl(trimmed) && !duplicate && !saving;
+  // The backend reports "unchecked" for every link while the Support tickets
+  // database is not connected, so any one of them says it for all.
+  const notConnected = links.some((link) => byUrl.get(link)?.state === "unchecked");
 
   async function write(next) {
     setError(null);
@@ -133,6 +141,13 @@ export default function SupportTickets({ ticket }) {
       ) : (
         <Caption>None linked yet.</Caption>
       )}
+      {notConnected && (
+        <NotConnected role="status">
+          <strong>Not in Notion yet.</strong> The Support tickets database is not
+          connected to the platform, so these links are saved here only. They are
+          added to the ticket&apos;s Notion page once it is connected.
+        </NotConnected>
+      )}
 
       <AddForm
         onSubmit={async (event) => {
@@ -163,11 +178,13 @@ export default function SupportTickets({ ticket }) {
         )}
       </AddForm>
       {error && <ErrorLine role="alert">{error}</ErrorLine>}
-      <Caption>
-        Shown on the ticket&apos;s Notion page, and on each support ticket as
-        “Platform tickets”. Links added directly in Notion stay there, but do not
-        show here.
-      </Caption>
+      {!notConnected && (
+        <Caption>
+          Shown on the ticket&apos;s Notion page, and on each support ticket as
+          “Platform tickets”. Links added directly in Notion stay there, but do not
+          show here.
+        </Caption>
+      )}
     </div>
   );
 }
@@ -283,6 +300,22 @@ const Hint = styled.p`
 
   &[data-tone="warn"] {
     color: var(--MH-Theme-Warning-Dark, #8f1f14);
+  }
+`;
+
+/* Informational, not an error: nothing the person did is wrong. Accent-tinted
+   like the filing panel's open-ticket callout, so it is seen rather than
+   skimmed past as another caption. */
+const NotConnected = styled.p`
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--MH-Theme-Accent-Light, #fdf2d0);
+  font: var(--MH-Type-Body-Small);
+  color: var(--MH-Theme-Neutrals-Black, #171717);
+
+  strong {
+    font: var(--MH-Type-Label-Small);
   }
 `;
 

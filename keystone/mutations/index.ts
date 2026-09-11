@@ -70,6 +70,7 @@ import closeTicketsFromCommit from "./closeTicketsFromCommit";
 import ticketForAgent from "./ticketForAgent";
 import supportTicketPreviews from "./supportTicketPreviews";
 import backfillTicketScreenshotsToNotion from "./backfillTicketScreenshotsToNotion";
+import backfillSupportTicketsToNotion from "./backfillSupportTicketsToNotion";
 import backfillProjectBoardFormScope from "./backfillProjectBoardFormScope";
 import backfillProposalBoardPublicIds from "./backfillProposalBoardPublicIds";
 import syncClassTemplateBoards from "./syncClassTemplateBoards";
@@ -100,6 +101,10 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         skipped: [String!]!
       }
       type BackfillTicketScreenshotsResult {
+        dryRun: Boolean!
+        results: [String!]!
+      }
+      type BackfillSupportTicketsResult {
         dryRun: Boolean!
         results: [String!]!
       }
@@ -312,6 +317,13 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
           dryRun: Boolean
           secret: String
         ): BackfillTicketScreenshotsResult!
+        # Catch-up after scripts/setup-notion-support-relation.js: link the
+        # support tickets saved before the relation existed. Adds only;
+        # dry-run by default.
+        backfillSupportTicketsToNotion(
+          dryRun: Boolean
+          secret: String
+        ): BackfillSupportTicketsResult!
         # Called by CI, authenticated by a shared secret rather than a
         # session. See mutations/closeTicketsFromCommit.ts.
         closeTicketsFromCommit(
@@ -536,6 +548,7 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         pruneTicketScreenshots,
         closeTicketsFromCommit,
         backfillTicketScreenshotsToNotion,
+        backfillSupportTicketsToNotion,
         backfillProjectBoardFormScope,
         backfillProposalBoardPublicIds,
         backfillClassNetworkPublicIds,

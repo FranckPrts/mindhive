@@ -422,10 +422,10 @@ export async function removeScreenshotFromNotion(notionPageId: string | null): P
  *
  * Unlike every other property, this one is not overwritten from MindHive.
  * People already link support tickets by hand in Notion, and a relation is
- * easy to edit there, so the mirror applies MindHive's CHANGES — the links
- * added and removed on the platform — to whatever the page already has. A link
- * made directly in Notion is never removed by the mirror. (It does not show on
- * the platform either: this stays a one-way mirror.)
+ * easy to edit there, so the mirror merges rather than replaces: every link
+ * saved on the platform is on the page, links unlinked on the platform are
+ * taken off it, and a link made directly in Notion is never removed. (It does
+ * not show on the platform either: this stays a one-way mirror.)
  */
 
 function supportDatabaseId(): string | null {
@@ -472,23 +472,32 @@ async function currentSupportIds(notion: Client, pageId: string): Promise<string
   return ids;
 }
 
+type SupportOutcome = "linked" | "would-link" | "unchanged" | "not-set-up" | "failed";
+
 /**
- * Apply added and removed links to the page's relation, keeping any other
- * link already there. Best-effort: Notion refuses the whole write if one page
- * is outside the Support tickets database or not shared with the integration,
- * and that must not affect anything else the mirror does.
+ * Bring a page's relation in line with the ticket: every link saved on the
+ * platform present, those unlinked there (`before` but not `after`) removed,
+ * anything else already on the page kept.
+ *
+ * The whole saved set, not only what just changed: a write that failed earlier
+ * — Notion unreachable, the relation not set up yet — is then repaired by the
+ * next one, instead of that link silently never reaching Notion.
+ *
+ * Best-effort: Notion refuses the whole write if one page is outside the
+ * Support tickets database or not shared with the integration, and that must
+ * not affect anything else the mirror does.
  */
 async function writeSupportRelation(
   notion: Client,
   pageId: string,
   before: string[],
   after: string[],
-  ticketId: string
-): Promise<void> {
-  if (!supportDatabaseId()) return;
-  const added = after.filter((id) => !before.some((b) => sameNotionId(b, id)));
+  ticketId: string,
+  { dryRun = false }: { dryRun?: boolean } = {}
+): Promise<SupportOutcome> {
+  if (!supportDatabaseId()) return "not-set-up";
   const removed = before.filter((id) => !after.some((a) => sameNotionId(a, id)));
-  if (!added.length && !removed.length) return;
+  if (!after.length && !removed.length) return "unchanged";
   try {
     const current = await currentSupportIds(notion, pageId);
     if (current === null) {
@@ -496,21 +505,56 @@ async function writeSupportRelation(
         `[notionMirror] the Tickets database has no "${PROP.support}" relation; ` +
           "run scripts/setup-notion-support-relation.js"
       );
-      return;
+      return "not-set-up";
     }
     const next = [
       ...current.filter((id) => !removed.some((r) => sameNotionId(r, id))),
-      ...added.filter((id) => !current.some((c) => sameNotionId(c, id))),
+      ...after.filter((id) => !current.some((c) => sameNotionId(c, id))),
     ];
+    const same =
+      next.length === current.length && next.every((id) => current.some((c) => sameNotionId(c, id)));
+    if (same) return "unchanged";
+    if (dryRun) return "would-link";
     await notion.pages.update({
       page_id: pageId,
       properties: { [PROP.support]: { relation: next.map((id) => ({ id })) } } as any,
     });
+    return "linked";
   } catch (error: any) {
     console.error(
       `[notionMirror] support tickets not linked for ticket ${ticketId}: ${error?.message ?? error}`
     );
+    return "failed";
   }
+}
+
+/**
+ * Link support tickets that were saved on the platform before the Support
+ * tickets relation existed, or while Notion was unreachable. Only ever adds,
+ * so it is safe to re-run. One line per ticket that has links, for the report.
+ */
+export async function backfillSupportTicketsToNotion(
+  context: any,
+  { dryRun = true }: { dryRun?: boolean } = {}
+): Promise<string[]> {
+  const notion = getClient();
+  if (!notion || !supportDatabaseId()) {
+    return ["disabled: Notion or NOTION_SUPPORT_TICKETS_DB is not configured"];
+  }
+  const tickets = await context.sudo().query.Ticket.findMany({
+    where: { notionPageId: { not: { equals: "" } } },
+    query: "id title notionPageId supportTickets",
+  });
+  const results: string[] = [];
+  for (const ticket of tickets) {
+    const ids = supportIds(ticket.supportTickets);
+    if (!ids.length) continue;
+    const outcome = await writeSupportRelation(notion, ticket.notionPageId, [], ids, ticket.id, {
+      dryRun,
+    });
+    results.push(`${outcome}: ${ticket.title}`);
+  }
+  return results;
 }
 
 /** After a ticket's support links change: carry the change to its Notion page. */
