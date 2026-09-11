@@ -1163,9 +1163,9 @@ export default function MilestoneCardBuilder({
               disabled
               style={{
                 marginTop: 4,
-                background: "var(--MH-Theme-Neutrals-Lighter, #F3F3F3)",
-                border: "1px solid var(--MH-Theme-Neutrals-Light, #E6E6E6)",
-                color: "var(--MH-Theme-Neutrals-Dark, #5D5763)",
+                background: "var(--MH-Theme-Neutrals-Lighter, #f3f3f3)",
+                border: "1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6)",
+                color: "var(--MH-Theme-Accent-Dark, #5d5763)",
               }}
             />
           ) : null}
@@ -1216,7 +1216,7 @@ export default function MilestoneCardBuilder({
                         label={cardLabel}
                         disabled
                         style={{
-                          background: "var(--MH-Theme-Neutrals-White, #FFFFFF)",
+                          background: "var(--MH-Theme-Neutrals-White, #ffffff)",
                         }}
                       />
                     </li>

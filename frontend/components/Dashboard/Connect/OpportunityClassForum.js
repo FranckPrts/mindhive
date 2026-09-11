@@ -56,7 +56,7 @@ const QuestionCard = styled.article`
   padding: 14px 16px;
   border-radius: 12px;
   background: var(--MH-Theme-Neutrals-White, #ffffff);
-  border: 1px solid var(--MH-Theme-Neutrals-Light, #d3dae0);
+  border: 1px solid #d3dae0;
   box-sizing: border-box;
 `;
 
@@ -75,7 +75,7 @@ const CardMeta = styled.div`
   align-items: baseline;
   font: var(--MH-Type-Body-Small, 400 12px/16px "Inter", sans-serif);
   letter-spacing: 0;
-  color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+  color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
 
   .name {
     font: var(--MH-Type-Label-Small, 600 12px/16px "Inter", sans-serif);
@@ -99,9 +99,9 @@ const PlusOneButton = styled.button`
   margin: 0;
   padding: 0 8px 0 4px;
   border-radius: 8px;
-  border: 1px solid var(--MH-Theme-Neutrals-Light, #d3dae0);
+  border: 1px solid #d3dae0;
   background: var(--MH-Theme-Neutrals-White, #ffffff);
-  color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+  color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
   font: var(--MH-Type-Label-Base, 500 14px/20px "Inter", sans-serif);
   letter-spacing: 0;
   cursor: pointer;
@@ -169,7 +169,7 @@ const EmptyState = styled.p`
   padding: 12px 14px;
   border-radius: 12px;
   background: var(--MH-Theme-Neutrals-Lighter, #f3f3f3);
-  color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+  color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
   font: var(--MH-Type-Body-Base, 400 16px/24px "Inter", sans-serif);
   letter-spacing: 0;
 `;
@@ -178,7 +178,7 @@ const StatusText = styled.p`
   margin: 0;
   font: var(--MH-Type-Body-Base, 400 16px/24px "Inter", sans-serif);
   letter-spacing: 0;
-  color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+  color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
 `;
 
 const ErrorText = styled.p`
@@ -245,7 +245,7 @@ const SearchField = styled.div`
     transform: translateY(-50%);
     width: 20px;
     height: 20px;
-    color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+    color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
     pointer-events: none;
   }
 

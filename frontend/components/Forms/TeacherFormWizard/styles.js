@@ -14,7 +14,7 @@ export const StepMeta = styled.p`
   margin: 0;
   font: var(--MH-Type-Body-Base);
   letter-spacing: 0;
-  color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+  color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
 `;
 
 export const FieldStack = styled.div`
@@ -31,14 +31,14 @@ export const FieldStack = styled.div`
   .field-hint {
     font: var(--MH-Type-Body-Base);
     letter-spacing: 0;
-    color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+    color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
   }
 
   input,
   textarea {
     font: var(--MH-Type-Label-Base);
     letter-spacing: 0;
-    border: 2px solid var(--MH-Theme-Neutrals-Light, #d3dae0);
+    border: 2px solid #d3dae0;
     border-radius: 8px;
     padding: 9px 11px;
     color: var(--MH-Theme-Neutrals-Black, #171717);
@@ -92,7 +92,7 @@ export const QuestionList = styled.div`
 `;
 
 export const QuestionCard = styled.div`
-  border: 1px solid var(--MH-Theme-Neutrals-Light, #d3dae0);
+  border: 1px solid #d3dae0;
   border-radius: 12px;
   padding: ${({ $collapsed }) => ($collapsed ? "8px 10px" : "12px 14px")};
   background: #fff;
@@ -110,7 +110,7 @@ export const QuestionCardHeader = styled.div`
   .question-meta {
     font: var(--MH-Type-Body-Base);
     letter-spacing: 0;
-    color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+    color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
   }
 
   .header-actions {
@@ -151,7 +151,7 @@ export const QuestionSummary = styled.div`
   .summary-type {
     font: var(--MH-Type-Body-Base);
     letter-spacing: 0;
-    color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+    color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
   }
 
   .summary-prompt {
@@ -201,13 +201,13 @@ export const TypeTile = styled.button`
     ${({ $active }) =>
       $active
         ? "var(--MH-Theme-Primary-Dark, #336f8a)"
-        : "var(--MH-Theme-Neutrals-Light, #d3dae0)"};
+        : "#d3dae0"};
   background: ${({ $active }) =>
     $active ? "var(--MH-Theme-Primary-Light, #def8fb)" : "#fff"};
   color: ${({ $active }) =>
     $active
       ? "var(--MH-Theme-Primary-Dark, #336f8a)"
-      : "var(--MH-Theme-Neutrals-Dark, #5f6871)"};
+      : "var(--MH-Theme-Neutrals-Grey-2, #5f6871)"};
   padding: ${({ $compact }) => ($compact ? "6px" : "10px 10px 8px")};
   width: ${({ $compact }) => ($compact ? "36px" : "auto")};
   height: ${({ $compact }) => ($compact ? "36px" : "auto")};
@@ -246,7 +246,7 @@ export const TypeTile = styled.button`
     display: block;
     font: var(--MH-Type-Body-Base);
     letter-spacing: 0;
-    color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+    color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
   }
 
   &.active .type-label {
@@ -299,7 +299,7 @@ export const CheckboxRow = styled.label`
   gap: 8px;
   font: var(--MH-Type-Body-Base) !important;
   letter-spacing: 0;
-  color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+  color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
   cursor: pointer;
 
   input {
@@ -317,7 +317,7 @@ export const CloneList = styled.div`
 
 export const CloneRow = styled.button`
   text-align: left;
-  border: 1px solid var(--MH-Theme-Neutrals-Light, #d3dae0);
+  border: 1px solid #d3dae0;
   border-radius: 10px;
   background: #fff;
   padding: 10px 12px;

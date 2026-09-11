@@ -94,7 +94,7 @@ const Filters = styled.div`
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   border-radius: 12px;
-  border: 1px solid var(--MH-Theme-Neutrals-Light, #E6E6E6);
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
 `;
 
 const FilterRow = styled.div`

@@ -73,6 +73,7 @@ export const CURRENT_USER_QUERY = gql`
         permissions {
           name
           canManageForms
+          canManageTickets
         }
         image {
           id
