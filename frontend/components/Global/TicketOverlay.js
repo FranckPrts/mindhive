@@ -9,6 +9,7 @@ import { surfaceForRoute } from "../../lib/surfaces";
 import { parseFigmaUrl, describeFigmaUrl } from "../../lib/figmaUrl";
 import { onOpenTicketPanel, announceOpenTicketCount } from "../../lib/ticketPanel";
 import { isolateFromPage } from "../../lib/isolateFromPage";
+import FigmaLink from "../Dashboard/Tickets/FigmaLink";
 import {
   CREATE_TICKET,
   CREATE_TICKET_WITH_SCREENSHOT,
@@ -351,6 +352,7 @@ export default function TicketOverlay() {
                     <Tag data-claimed={ticket.assignee ? "yes" : "no"}>
                       {ticket.assignee ? `${ticket.assignee.username} is on it` : "Unclaimed"}
                     </Tag>
+                    <FigmaLink url={ticket.figmaDesignUrl} />
                   </ExistingMeta>
 
                   <MarkShipped

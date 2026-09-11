@@ -7,7 +7,7 @@ import { GET_TICKET, GET_TICKETS, GET_TICKET_ASSIGNEES } from "../../Queries/Tic
 import { SET_TICKET_STATUS, ASSIGN_TICKET, UNASSIGN_TICKET } from "../../Mutations/Ticket";
 import { UserContext } from "../../Global/Authorized";
 import { getSurface } from "../../../lib/surfaces";
-import { describeFigmaUrl } from "../../../lib/figmaUrl";
+import FigmaLink from "./FigmaLink";
 import BeehiveLoading from "../../DesignSystem/BeehiveLoading";
 import Button from "../../DesignSystem/Button";
 import CopyButton from "../../DesignSystem/CopyButton";
@@ -86,6 +86,13 @@ export default function TicketPage({ id }) {
       </Back>
 
       <h1 className="MH-Type-Heading-Small">{ticket.title}</h1>
+      {/* Seen first rather than buried in the facts grid below: for a design
+          ticket, where the intended design lives is the argument. */}
+      {ticket.figmaDesignUrl && (
+        <TitleLinks>
+          <FigmaLink url={ticket.figmaDesignUrl} detail />
+        </TitleLinks>
+      )}
 
       <Facts>
         <Fact>
@@ -122,16 +129,6 @@ export default function TicketPage({ id }) {
             <dt>Code</dt>
             <dd>
               <Mono>{surface.root}</Mono>
-            </dd>
-          </Fact>
-        )}
-        {ticket.figmaDesignUrl && (
-          <Fact>
-            <dt>Intended design</dt>
-            <dd>
-              <a href={ticket.figmaDesignUrl} target="_blank" rel="noopener noreferrer">
-                {describeFigmaUrl(ticket.figmaDesignUrl) ?? "Open in Figma"}
-              </a>
             </dd>
           </Fact>
         )}
@@ -301,6 +298,13 @@ const Wrapper = styled.div`
   h2 {
     margin: 0 0 8px;
   }
+`;
+
+const TitleLinks = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -8px 0 16px;
 `;
 
 const Back = styled.p`

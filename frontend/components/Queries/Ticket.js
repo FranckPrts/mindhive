@@ -16,6 +16,7 @@ const TICKET_SUMMARY = `
     id
     username
   }
+  figmaDesignUrl
 `;
 
 // The whole board. Ordered so open work sits at the top of each surface group.
@@ -47,7 +48,6 @@ export const GET_TICKET = gql`
       ${TICKET_SUMMARY}
       body
       evidence
-      figmaDesignUrl
       figmaNodeId
       notionPageId
       updatedAt
