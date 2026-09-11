@@ -18,6 +18,7 @@ import ClassSettings from "./Settings";
 import { GET_CLASS } from "../../../Queries/Classes";
 import RestrictedAccess from "../../../Global/Restricted";
 import { NavbarItem, SectionNavbar } from "../../../DesignSystem/Navbar";
+import JustOneSecondNotice from "../../../DesignSystem/JustOneSecondNotice";
 
 import StyledClass from "../../../styles/StyledClass";
 
@@ -91,11 +92,12 @@ export default function ClassPage({ code, user, query }) {
   const router = useRouter();
   const { action, board } = query || {};
 
-  const { data } = useQuery(GET_CLASS, {
+  const { data, loading } = useQuery(GET_CLASS, {
     variables: { code },
   });
 
   const myclass = data?.class || { title: "", description: "" };
+  const isClassQueryPending = loading && !data;
   const hasNyuCusp = classHasNyuCusp(myclass?.settings);
   const isNyuCuspOnly = classIsNyuCuspOnly(myclass?.settings);
   const showOpportunitiesTab = hasNyuCusp;
@@ -191,6 +193,23 @@ export default function ClassPage({ code, user, query }) {
 
   if (page === "board" || (isNyuCuspOnly && NYU_CUSP_HIDDEN_TABS.has(page))) {
     return null;
+  }
+
+  if (isClassQueryPending) {
+    return (
+      <StyledClass>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <JustOneSecondNotice
+            message={{
+              h1: t("main.loadingClassTitle", {}, { default: "Loading class" }),
+              p: t("main.loadingClassBody", {}, {
+                default: "Fetching this class and its content.",
+              }),
+            }}
+          />
+        </div>
+      </StyledClass>
+    );
   }
 
   if (isProjectsFullscreen) {

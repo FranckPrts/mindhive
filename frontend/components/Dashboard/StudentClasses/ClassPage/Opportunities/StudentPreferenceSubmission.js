@@ -15,8 +15,15 @@ import {
   getDraftDriftedOpportunityIds,
   getFavoriteOppIdsInRound,
   isPreferenceSnapshotLocked,
+  isRoundRankingEditable,
   pruneRankingsToOpportunityIds,
 } from "../../../../../lib/opportunityFavoriteRanking";
+import {
+  formatPreferenceWindowInstant,
+  getPreferenceTimeWindowState,
+  readPreferenceWindowTimeZone,
+  resolvePreferenceWindowInstantMs,
+} from "../../../../../lib/connectRoundSettings";
 import {
   CREATE_PREFERENCE,
   UPDATE_PREFERENCE,
@@ -375,19 +382,8 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
     [roundOpportunities],
   );
   const submittedEarly = existingPreference?.status === "submitted";
-  const preferenceTimeWindowOpen = useMemo(() => {
-    if (!round) return false;
-    const now = Date.now();
-    const openAtMs = round.openAt ? new Date(round.openAt).getTime() : null;
-    const closeAtMs = round.closeAt ? new Date(round.closeAt).getTime() : null;
-    const beforeOpen = openAtMs && now < openAtMs;
-    const afterClose = closeAtMs && now > closeAtMs;
-    return !beforeOpen && !afterClose;
-  }, [round?.openAt, round?.closeAt, round?.id]);
   const isRankingEditable =
-    round?.status === "preferences_open" &&
-    preferenceTimeWindowOpen &&
-    !submittedEarly;
+    isRoundRankingEditable(round) && !submittedEarly;
   const isSnapshotLocked = isPreferenceSnapshotLocked({
     preferenceStatus: existingPreference?.status,
     isOpen: isRankingEditable,
@@ -1079,10 +1075,7 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
   }
 
   const now = Date.now();
-  const openAtMs = round.openAt ? new Date(round.openAt).getTime() : null;
-  const closeAtMs = round.closeAt ? new Date(round.closeAt).getTime() : null;
-  const beforeOpen = openAtMs && now < openAtMs;
-  const afterClose = closeAtMs && now > closeAtMs;
+  const { beforeOpen, afterClose } = getPreferenceTimeWindowState(round, now);
   const submitted = submittedEarly;
   const isOpen = isRankingEditable;
   const showDriftRepairModal =
@@ -1165,7 +1158,19 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
       },
     );
   } else if (beforeOpen) {
-    const openDate = new Date(round.openAt).toLocaleDateString();
+    const timeZone = readPreferenceWindowTimeZone(round.settings);
+    const openMs = resolvePreferenceWindowInstantMs(
+      round.openAt,
+      "open",
+      timeZone,
+    );
+    const openDate =
+      openMs != null
+        ? formatPreferenceWindowInstant(
+            new Date(openMs).toISOString(),
+            timeZone,
+          )
+        : "";
     lockReason = t(
       "opportunities.studentView.rankForm.lockReason.beforeOpen",
       { date: openDate },
@@ -1175,7 +1180,19 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
       },
     );
   } else if (afterClose) {
-    const closeDate = new Date(round.closeAt).toLocaleDateString();
+    const timeZone = readPreferenceWindowTimeZone(round.settings);
+    const closeMs = resolvePreferenceWindowInstantMs(
+      round.closeAt,
+      "close",
+      timeZone,
+    );
+    const closeDate =
+      closeMs != null
+        ? formatPreferenceWindowInstant(
+            new Date(closeMs).toISOString(),
+            timeZone,
+          )
+        : "";
     lockReason = t(
       "opportunities.studentView.rankForm.lockReason.afterClose",
       { date: closeDate },
@@ -1210,6 +1227,59 @@ export default function StudentPreferenceSubmission({ roundId, user, onBack }) {
           default: "Draft saved",
         })
     : null;
+
+  // Editable ranking with round opportunities available, but nothing favorited yet
+  // (covers both first entry before a draft exists, and an existing draft).
+  // Submitted/closed rankings stay reviewable; drift repair takes precedence.
+  const showEmptyFavoritesZeroState =
+    isOpen &&
+    !submitted &&
+    favoriteOppIdsInRound.size === 0 &&
+    roundOpportunities.length > 0 &&
+    !showDriftRepairModal;
+
+  if (showEmptyFavoritesZeroState) {
+    return (
+      <RankPageShell>
+        <RankFormChrome
+          title={pageTitle}
+          backLabel={backLabel}
+          onBack={handleCancel}
+          statusChipLabel={statusChipLabel}
+          submitted={submitted}
+        />
+        <RankPageBody>
+          <Card>
+            <h2>
+              {t(
+                "opportunities.studentView.rankForm.emptyFavoritesTitle",
+                {},
+                { default: "No favorited opportunities yet" },
+              )}
+            </h2>
+            <p className="helper">
+              {t(
+                "opportunities.studentView.rankForm.emptyFavoritesHint",
+                {},
+                {
+                  default:
+                    "Go back and tap the star on the opportunities you want to rank.",
+                },
+              )}
+            </p>
+            <Button type="button" variant="filled" onClick={handleCancel}>
+              {t(
+                "opportunities.studentView.rankForm.addFavorites",
+                {},
+                { default: "Add favorites" },
+              )}
+            </Button>
+          </Card>
+        </RankPageBody>
+      </RankPageShell>
+    );
+  }
+
   const handleSaveDraft = async () => {
     const stepKey = stepKeys[currentStep - 1] || stepKeys[0];
     if (

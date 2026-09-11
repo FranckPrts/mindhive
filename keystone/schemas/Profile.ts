@@ -429,6 +429,10 @@ export const Profile = list({
       ref: "Opportunity.favoriteByProfiles",
       many: true,
     }),
+    favoriteClasses: relationship({
+      ref: "Class.favoriteBy",
+      many: true,
+    }),
     connectRoundsCreated: relationship({
       ref: "ConnectRound.createdBy",
       many: true,

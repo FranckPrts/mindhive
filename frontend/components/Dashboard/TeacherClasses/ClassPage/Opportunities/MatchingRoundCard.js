@@ -42,15 +42,22 @@ import {
   EMPTY_FORM,
   buildSuggestedRoundDefaults,
   toDateInputValue,
-  toIsoOrNull,
 } from "../../../Connect/Rounds/roundFormConfig";
 import MatchingRoundScheduleFields from "../../../Connect/Rounds/MatchingRoundScheduleFields";
 import {
   mergeRoundSettings,
   readRoundSchedule,
   readSponsorFormsVisible,
+  readPreferenceWindowTimeZone,
   scheduleFromInputs,
-  formatScheduleDate,
+  formatPreferenceWindowInstant,
+  getPreferenceTimeWindowState,
+  hydratePreferenceWindowBound,
+  zonedWallTimeToUtcIso,
+  SCHEDULE_SETTING_KEYS,
+  DEFAULT_PREFERENCE_WINDOW_OPEN_TIME,
+  DEFAULT_PREFERENCE_WINDOW_CLOSE_TIME,
+  DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
 } from "../../../../../lib/connectRoundSettings";
 import { useUser } from "../../../../Utils/Access/User";
 import MatchingRoundOpportunitiesGrid from "./MatchingRoundOpportunitiesGrid";
@@ -60,6 +67,7 @@ import MatchingRoundStudentBallotPanel, {
   STUDENT_RANKING_SUB_MODES,
 } from "./MatchingRoundStudentBallotPanel";
 import MatchingRoundStudentAssessmentSetup from "./MatchingRoundStudentAssessmentSetup";
+import MatchingRoundMatchingPanel from "./MatchingRoundMatchingPanel";
 import MatchingRoundFormPreviewModal from "./MatchingRoundFormPreviewModal";
 import OpportunityExportModal from "./OpportunityExportModal";
 import TeacherFormWizard from "../../../../Forms/TeacherFormWizard";
@@ -240,6 +248,23 @@ const SettingsModalContent = styled.div`
   }
 `;
 
+/** Portal-safe: Modal actions mount outside `.classTabPage` / SettingsModalContent. */
+const SettingsModalActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+
+  .matchingRoundSettingsUnsavedHint {
+    margin: 0;
+    font: var(--MH-Type-Label-Small);
+    letter-spacing: 0;
+    color: #8a6d3b;
+  }
+`;
+
 function getRoundStatusParts(status, t) {
   const key = ROUND_STATUS_KEYS[status];
   if (!key) return { short: status, hint: "" };
@@ -381,7 +406,11 @@ function buildSnapshot(
     description: inputs.description || "",
     status: inputs.status || "draft",
     openAt: inputs.openAt || "",
+    openAtTime: inputs.openAtTime || DEFAULT_PREFERENCE_WINDOW_OPEN_TIME,
     closeAt: inputs.closeAt || "",
+    closeAtTime: inputs.closeAtTime || DEFAULT_PREFERENCE_WINDOW_CLOSE_TIME,
+    preferenceWindowTimeZone:
+      inputs.preferenceWindowTimeZone || DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
     ...schedule,
     opportunities: [...opportunityIds].sort(),
     questions: [...questionIds].sort(),
@@ -397,7 +426,10 @@ function snapshotsEqual(a, b) {
     a.description === b.description &&
     a.status === b.status &&
     a.openAt === b.openAt &&
+    a.openAtTime === b.openAtTime &&
     a.closeAt === b.closeAt &&
+    a.closeAtTime === b.closeAtTime &&
+    a.preferenceWindowTimeZone === b.preferenceWindowTimeZone &&
     a.introductionAt === b.introductionAt &&
     a.matchingStartAt === b.matchingStartAt &&
     a.matchingEndAt === b.matchingEndAt &&
@@ -409,6 +441,38 @@ function snapshotsEqual(a, b) {
     JSON.stringify(a.formDefinitions) === JSON.stringify(b.formDefinitions) &&
     a.sponsorFormsVisible === b.sponsorFormsVisible
   );
+}
+
+/** Settings modal fields only (title, description, preference window, schedule). */
+function settingsSnapshotsEqual(a, b) {
+  if (!a || !b) return a === b;
+  return (
+    a.title === b.title &&
+    a.description === b.description &&
+    a.openAt === b.openAt &&
+    a.openAtTime === b.openAtTime &&
+    a.closeAt === b.closeAt &&
+    a.closeAtTime === b.closeAtTime &&
+    a.preferenceWindowTimeZone === b.preferenceWindowTimeZone &&
+    a.introductionAt === b.introductionAt &&
+    a.matchingStartAt === b.matchingStartAt &&
+    a.matchingEndAt === b.matchingEndAt &&
+    a.reviewStartAt === b.reviewStartAt &&
+    a.reviewEndAt === b.reviewEndAt &&
+    a.sponsorIntroAt === b.sponsorIntroAt
+  );
+}
+
+/** True when saved settings exist but the live form lost them (stale wipe / HMR). */
+function settingsLookWipedRelativeToSnapshot(inputs, snap) {
+  if (!snap || !inputs) return false;
+  if ((snap.title || "").trim() && !(inputs.title || "").trim()) return true;
+  if ((snap.openAt || "") && !(inputs.openAt || "")) return true;
+  if ((snap.closeAt || "") && !(inputs.closeAt || "")) return true;
+  for (const key of SCHEDULE_SETTING_KEYS) {
+    if ((snap[key] || "") && !(inputs[key] || "")) return true;
+  }
+  return false;
 }
 
 function sortOpportunitiesByTitle(opportunities) {
@@ -534,8 +598,9 @@ function MatchingRoundEditor({
     if (typeof raw !== "string" || !Object.values(PANELS).includes(raw)) {
       return null;
     }
-    // Matches tab is present but disabled for now — ignore deep links.
-    if (raw === PANELS.matches) return null;
+    if (raw === PANELS.matches && isNew) {
+      return null;
+    }
     // Student Interest is disabled for draft / unsaved rounds.
     if (
       raw === PANELS.studentInterest &&
@@ -549,6 +614,9 @@ function MatchingRoundEditor({
   const resolveAllowedPanel = useCallback(
     (panel) => {
       if (!panel || panel === PANELS.settings) return null;
+      if (panel === PANELS.matches && isNew) {
+        return null;
+      }
       if (
         panel === PANELS.studentInterest &&
         (isNew || roundSummary?.status === "draft")
@@ -559,7 +627,8 @@ function MatchingRoundEditor({
         panel !== PANELS.review &&
         panel !== PANELS.selected &&
         panel !== PANELS.forms &&
-        panel !== PANELS.studentInterest
+        panel !== PANELS.studentInterest &&
+        panel !== PANELS.matches
       ) {
         return null;
       }
@@ -632,7 +701,9 @@ function MatchingRoundEditor({
   });
   const round = roundData?.connectRound;
 
-  const { inputs, handleChange, handleMultipleUpdate } = useForm(EMPTY_FORM);
+  const { inputs, handleChange, handleMultipleUpdate } = useForm(EMPTY_FORM, {
+    freezeInitialSync: true,
+  });
 
   const roundStatusForPanels =
     (typeof inputs?.status === "string" && inputs.status) ||
@@ -640,6 +711,7 @@ function MatchingRoundEditor({
     roundSummary?.status ||
     null;
   const isStudentInterestDisabled = isNew;
+  const isMatchesDisabled = isNew;
 
   const workspaceRoundKey = isCreate
     ? MATCHING_ROUND_CREATE_QUERY
@@ -732,6 +804,12 @@ function MatchingRoundEditor({
     }
   }, [activePanel, isStudentInterestDisabled]);
 
+  useEffect(() => {
+    if (activePanel === PANELS.matches && isMatchesDisabled) {
+      setActivePanel(PANELS.review);
+    }
+  }, [activePanel, isMatchesDisabled]);
+
   const captureSnapshot = useCallback(
     (
       nextInputs,
@@ -772,6 +850,26 @@ function MatchingRoundEditor({
     snapshotRevision,
   ]);
 
+  const isSettingsDirty = useMemo(() => {
+    if (!formInitialized || !savedSnapshotRef.current) return false;
+    const current = buildSnapshot(
+      inputs,
+      selectedOpportunities,
+      selectedQuestions,
+      selectedFormDefinitionIds,
+      sponsorFormsVisible,
+    );
+    return !settingsSnapshotsEqual(current, savedSnapshotRef.current);
+  }, [
+    formInitialized,
+    inputs,
+    selectedOpportunities,
+    selectedQuestions,
+    selectedFormDefinitionIds,
+    sponsorFormsVisible,
+    snapshotRevision,
+  ]);
+
   const confirmIfDirty = useCallback(() => {
     if (!formInitialized || !savedSnapshotRef.current) return true;
     const current = buildSnapshot(
@@ -796,6 +894,52 @@ function MatchingRoundEditor({
     sponsorFormsVisible,
     t,
   ]);
+
+  const revertSettingsFromSnapshot = useCallback(() => {
+    const snapshot = savedSnapshotRef.current;
+    if (!snapshot) return;
+    handleMultipleUpdate({
+      title: snapshot.title || "",
+      description: snapshot.description || "",
+      openAt: snapshot.openAt || "",
+      openAtTime: snapshot.openAtTime || DEFAULT_PREFERENCE_WINDOW_OPEN_TIME,
+      closeAt: snapshot.closeAt || "",
+      closeAtTime: snapshot.closeAtTime || DEFAULT_PREFERENCE_WINDOW_CLOSE_TIME,
+      preferenceWindowTimeZone:
+        snapshot.preferenceWindowTimeZone ||
+        DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
+      introductionAt: snapshot.introductionAt || "",
+      matchingStartAt: snapshot.matchingStartAt || "",
+      matchingEndAt: snapshot.matchingEndAt || "",
+      reviewStartAt: snapshot.reviewStartAt || "",
+      reviewEndAt: snapshot.reviewEndAt || "",
+      sponsorIntroAt: snapshot.sponsorIntroAt || "",
+    });
+  }, [handleMultipleUpdate]);
+
+  const requestCloseSettingsModal = useCallback(() => {
+    if (isNew || !isSettingsDirty) {
+      setSettingsModalOpen(false);
+    }
+  }, [isNew, isSettingsDirty]);
+
+  const handleSettingsCloseClick = useCallback(() => {
+    if (!isNew && isSettingsDirty) {
+      revertSettingsFromSnapshot();
+    }
+    setSettingsModalOpen(false);
+  }, [isNew, isSettingsDirty, revertSettingsFromSnapshot]);
+
+  // If settings fields were wiped after hydrate (stale form update / HMR), restore
+  // from the last saved snapshot when the settings modal opens.
+  useEffect(() => {
+    if (!settingsModalOpen || isNew || !formInitialized) return;
+    const snap = savedSnapshotRef.current;
+    if (!settingsLookWipedRelativeToSnapshot(inputs, snap)) return;
+    revertSettingsFromSnapshot();
+    // Sample inputs only when the modal opens — do not fight intentional clears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open-time recovery only
+  }, [settingsModalOpen, isNew, formInitialized, revertSettingsFromSnapshot]);
 
   useEffect(() => {
     const classCode = myclass?.code;
@@ -836,6 +980,12 @@ function MatchingRoundEditor({
     setSponsorFormsVisible(false);
   }, [isCreate, initialNetworkId, selectedNetworkId]);
 
+  // Re-hydrate when the workspace round identity changes.
+  useEffect(() => {
+    setFormInitialized(false);
+    savedSnapshotRef.current = null;
+  }, [roundId, isNew]);
+
   useEffect(() => {
     if (isNew) {
       if (formInitialized) return;
@@ -849,7 +999,14 @@ function MatchingRoundEditor({
         description: suggested.description || "",
         status: suggested.status || "draft",
         openAt: suggested.openAt || "",
+        openAtTime:
+          suggested.openAtTime || DEFAULT_PREFERENCE_WINDOW_OPEN_TIME,
         closeAt: suggested.closeAt || "",
+        closeAtTime:
+          suggested.closeAtTime || DEFAULT_PREFERENCE_WINDOW_CLOSE_TIME,
+        preferenceWindowTimeZone:
+          suggested.preferenceWindowTimeZone ||
+          DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
         ...readRoundSchedule(null),
       };
       handleMultipleUpdate(defaults);
@@ -866,12 +1023,26 @@ function MatchingRoundEditor({
     if (!round || round.id !== roundId) return;
     if (formInitialized) return;
 
+    const timeZone = readPreferenceWindowTimeZone(round.settings);
+    const openBound = hydratePreferenceWindowBound(
+      round.openAt,
+      "open",
+      timeZone,
+    );
+    const closeBound = hydratePreferenceWindowBound(
+      round.closeAt,
+      "close",
+      timeZone,
+    );
     const nextInputs = {
       title: round.title || "",
       description: round.description || "",
       status: round.status || "draft",
-      openAt: toDateInputValue(round.openAt),
-      closeAt: toDateInputValue(round.closeAt),
+      openAt: openBound.date,
+      openAtTime: openBound.time,
+      closeAt: closeBound.date,
+      closeAtTime: closeBound.time,
+      preferenceWindowTimeZone: timeZone,
       ...readRoundSchedule(round.settings),
     };
     const nextOpportunities = (round.opportunities || []).map((o) => o.id);
@@ -1259,7 +1430,7 @@ function MatchingRoundEditor({
         label: t(
           "opportunities.matchingRound.panels.studentRanking",
           {},
-          { default: "Student Ranking" },
+          { default: "Student ranking" },
         ),
         disabled: isStudentInterestDisabled,
         tooltipContent: isStudentInterestDisabled
@@ -1273,21 +1444,37 @@ function MatchingRoundEditor({
             )
           : null,
       },
+      {
+        id: PANELS.matches,
+        label: t("opportunities.matchingRound.panels.matching", {}, {
+          default: "Matching",
+        }),
+        disabled: isMatchesDisabled,
+        tooltipContent: isMatchesDisabled
+          ? t(
+              "opportunities.matchingRound.matching.disabledNewHint",
+              {},
+              {
+                default:
+                  "Save the matching round first to open matching.",
+              },
+            )
+          : null,
+      },
       // {
       //   id: PANELS.questions,
       //   label: t("opportunities.matchingRound.panels.questions", {}, {
       //     default: "Student questions",
       //   }),
       // },
-        // {
-        //   id: PANELS.matches,
-        //   label: t("opportunities.matchingRound.panels.manageMatches", {}, {
-        //     default: "Manage matches",
-        //   }),
-        //   disabled: true,
-        // },
     ],
-    [isStudentInterestDisabled, reviewOpportunitiesCount, selectedOpportunities.length, t],
+    [
+      isMatchesDisabled,
+      isStudentInterestDisabled,
+      reviewOpportunitiesCount,
+      selectedOpportunities.length,
+      t,
+    ],
   );
 
   const [createConnectRound, { loading: creating }] = useMutation(
@@ -1728,8 +1915,18 @@ function MatchingRoundEditor({
               description: inputs.description || "",
               classNetwork: { connect: { id: selectedNetworkId } },
               status: inputs.status || "draft",
-              openAt: toIsoOrNull(inputs.openAt),
-              closeAt: toIsoOrNull(inputs.closeAt),
+              openAt: zonedWallTimeToUtcIso(
+                inputs.openAt,
+                inputs.openAtTime || DEFAULT_PREFERENCE_WINDOW_OPEN_TIME,
+                inputs.preferenceWindowTimeZone ||
+                  DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
+              ),
+              closeAt: zonedWallTimeToUtcIso(
+                inputs.closeAt,
+                inputs.closeAtTime || DEFAULT_PREFERENCE_WINDOW_CLOSE_TIME,
+                inputs.preferenceWindowTimeZone ||
+                  DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
+              ),
               matchingAlgorithm: "stable_matching",
               opportunities: opportunitiesConnect.length
                 ? { connect: opportunitiesConnect }
@@ -1746,6 +1943,9 @@ function MatchingRoundEditor({
               settings: mergeRoundSettings(null, {
                 sponsorFormsVisible,
                 schedule: scheduleFromInputs(inputs),
+                preferenceWindowTimeZone:
+                  inputs.preferenceWindowTimeZone ||
+                  DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
               }),
             },
           },
@@ -1770,8 +1970,18 @@ function MatchingRoundEditor({
               title: inputs.title,
               description: inputs.description || "",
               status: inputs.status || "draft",
-              openAt: toIsoOrNull(inputs.openAt),
-              closeAt: toIsoOrNull(inputs.closeAt),
+              openAt: zonedWallTimeToUtcIso(
+                inputs.openAt,
+                inputs.openAtTime || DEFAULT_PREFERENCE_WINDOW_OPEN_TIME,
+                inputs.preferenceWindowTimeZone ||
+                  DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
+              ),
+              closeAt: zonedWallTimeToUtcIso(
+                inputs.closeAt,
+                inputs.closeAtTime || DEFAULT_PREFERENCE_WINDOW_CLOSE_TIME,
+                inputs.preferenceWindowTimeZone ||
+                  DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
+              ),
               opportunities: { set: opportunitiesConnect },
               questions: { set: questionsConnect },
               formDefinitions: { set: formDefinitionsConnect },
@@ -1781,6 +1991,9 @@ function MatchingRoundEditor({
               settings: mergeRoundSettings(round?.settings, {
                 sponsorFormsVisible,
                 schedule: scheduleFromInputs(inputs),
+                preferenceWindowTimeZone:
+                  inputs.preferenceWindowTimeZone ||
+                  DEFAULT_PREFERENCE_WINDOW_TIMEZONE,
               }),
               updatedAt: new Date().toISOString(),
               publishedAt:
@@ -3094,20 +3307,33 @@ function MatchingRoundEditor({
   );
 
   const renderStudentRankingPanel = () => {
-    const now = Date.now();
-    const openAtSource = inputs.openAt || round?.openAt;
-    const closeAtSource = inputs.closeAt || round?.closeAt;
-    const openAtMs = openAtSource ? new Date(openAtSource).getTime() : null;
-    const closeAtMs = closeAtSource ? new Date(closeAtSource).getTime() : null;
-    const beforeOpen = openAtMs && now < openAtMs;
-    const afterClose = closeAtMs && now > closeAtMs;
-    const rankingWindowActive = !beforeOpen && !afterClose;
+    const timeZone =
+      inputs.preferenceWindowTimeZone ||
+      readPreferenceWindowTimeZone(round?.settings);
+    const openAtIso = zonedWallTimeToUtcIso(
+      inputs.openAt || toDateInputValue(round?.openAt),
+      inputs.openAtTime || DEFAULT_PREFERENCE_WINDOW_OPEN_TIME,
+      timeZone,
+    );
+    const closeAtIso = zonedWallTimeToUtcIso(
+      inputs.closeAt || toDateInputValue(round?.closeAt),
+      inputs.closeAtTime || DEFAULT_PREFERENCE_WINDOW_CLOSE_TIME,
+      timeZone,
+    );
+    const openAtSource = openAtIso || round?.openAt;
+    const closeAtSource = closeAtIso || round?.closeAt;
+    const { beforeOpen, afterClose, isOpen: rankingWindowActive } =
+      getPreferenceTimeWindowState({
+        openAt: openAtSource,
+        closeAt: closeAtSource,
+        settings: { preferenceWindowTimeZone: timeZone },
+      });
     const ballotEnabled =
       !isNew &&
       roundStatusForPanels !== "draft" &&
       rankingWindowActive;
     const openAtLabel = openAtSource
-      ? formatScheduleDate(openAtSource)
+      ? formatPreferenceWindowInstant(openAtSource, timeZone)
       : null;
     const inactiveBallotMessage =
       roundStatusForPanels === "draft"
@@ -3181,6 +3407,7 @@ function MatchingRoundEditor({
               activePanel === PANELS.studentInterest &&
               !isStudentInterestDisabled
             }
+            embedded
           />
         )}
       />
@@ -3188,6 +3415,14 @@ function MatchingRoundEditor({
     </div>
     );
   };
+
+  const renderMatchesPanel = () => (
+    <MatchingRoundMatchingPanel
+      roundId={roundId}
+      students={myclass?.students || []}
+      enabled={activePanel === PANELS.matches && !isMatchesDisabled}
+    />
+  );
 
   return (
     <div className="matchingRoundWorkspace">
@@ -3324,17 +3559,28 @@ function MatchingRoundEditor({
       />
       <Modal
         open={settingsModalOpen}
-        onClose={() => setSettingsModalOpen(false)}
+        onClose={requestCloseSettingsModal}
         title={settingsLabel}
         maxWidth={640}
         maxHeight="90vh"
         hideScrollbar
         actions={
-          <>
+          <SettingsModalActions>
+            {!isNew && isSettingsDirty ? (
+              <p className="matchingRoundSettingsUnsavedHint">
+                {t(
+                  "opportunities.matchingRound.settingsUnsavedCloseHint",
+                  {},
+                  {
+                    default: "Closing discards unsaved changes.",
+                  },
+                )}
+              </p>
+            ) : null}
             <Button
               variant="text"
               type="button"
-              onClick={() => setSettingsModalOpen(false)}
+              onClick={handleSettingsCloseClick}
             >
               {t("close", {}, { default: "Close" })}
             </Button>
@@ -3356,7 +3602,7 @@ function MatchingRoundEditor({
                       default: "Save changes",
                     })}
             </Button>
-          </>
+          </SettingsModalActions>
         }
       >
         <SettingsModalContent>
@@ -3383,16 +3629,13 @@ function MatchingRoundEditor({
             {activePanel === PANELS.questions && renderQuestionsPanel()}
             {activePanel === PANELS.studentInterest &&
               renderStudentRankingPanel()}
+            {activePanel === PANELS.matches && renderMatchesPanel()}
 
-            {isDirty || isNew ? (
-              <div className="classTabMatchingRoundFooter">
-                {isDirty ? (
-                  <p className="matchingRoundUnsavedHint">
-                    {t("opportunities.matchingRound.unsavedChanges", {}, {
-                      default: "Unsaved changes",
-                    })}
-                  </p>
-                ) : null}
+            {isNew ? (
+              <div
+                className="classTabActionBar"
+                style={{ justifyContent: "flex-end" }}
+              >
                 <Button
                   variant="filled"
                   onClick={handleSave}
@@ -3402,13 +3645,9 @@ function MatchingRoundEditor({
                     ? t("opportunities.matchingRound.saving", {}, {
                         default: "Saving…",
                       })
-                    : isNew
-                      ? t("opportunities.matchingRound.createRound", {}, {
-                          default: "Create round",
-                        })
-                      : t("opportunities.matchingRound.saveRound", {}, {
-                          default: "Save changes",
-                        })}
+                    : t("opportunities.matchingRound.createRound", {}, {
+                        default: "Create round",
+                      })}
                 </Button>
               </div>
             ) : null}

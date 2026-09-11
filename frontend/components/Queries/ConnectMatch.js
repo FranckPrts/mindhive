@@ -16,6 +16,11 @@ export const ROUND_MATCH_VIEW = gql`
         title
         studentCapacity
         teamSize
+        allowsTeamPreferences
+        organization {
+          id
+          name
+        }
         sponsors {
           id
           username
@@ -57,6 +62,7 @@ export const ROUND_MATCH_VIEW = gql`
       preferences {
         id
         status
+        studentMatchingPreference
         submitter {
           id
           username
@@ -67,6 +73,7 @@ export const ROUND_MATCH_VIEW = gql`
           id
           opportunity {
             id
+            title
           }
           rank
           starRating
@@ -77,6 +84,8 @@ export const ROUND_MATCH_VIEW = gql`
         id
         opportunity {
           id
+          allowsTeamPreferences
+          teamSize
         }
         submitter {
           id
