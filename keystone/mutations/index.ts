@@ -68,6 +68,7 @@ import backfillTicketPermissions from "./backfillTicketPermissions";
 import pruneTicketScreenshots from "./pruneTicketScreenshots";
 import closeTicketsFromCommit from "./closeTicketsFromCommit";
 import ticketForAgent from "./ticketForAgent";
+import backfillTicketScreenshotsToNotion from "./backfillTicketScreenshotsToNotion";
 import backfillProjectBoardFormScope from "./backfillProjectBoardFormScope";
 import backfillProposalBoardPublicIds from "./backfillProposalBoardPublicIds";
 import syncClassTemplateBoards from "./syncClassTemplateBoards";
@@ -96,6 +97,10 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
       type CloseTicketsFromCommitResult {
         closed: [String!]!
         skipped: [String!]!
+      }
+      type BackfillTicketScreenshotsResult {
+        dryRun: Boolean!
+        results: [String!]!
       }
       type PruneTicketScreenshotsResult {
         dryRun: Boolean!
@@ -298,6 +303,12 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
           dryRun: Boolean
           secret: String
         ): PruneTicketScreenshotsResult!
+        # One-off catch-up: upload screenshots to Notion for tickets mirrored
+        # before screenshots were. Idempotent; dry-run by default.
+        backfillTicketScreenshotsToNotion(
+          dryRun: Boolean
+          secret: String
+        ): BackfillTicketScreenshotsResult!
         # Called by CI, authenticated by a shared secret rather than a
         # session. See mutations/closeTicketsFromCommit.ts.
         closeTicketsFromCommit(
@@ -510,6 +521,7 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         backfillTicketPermissions,
         pruneTicketScreenshots,
         closeTicketsFromCommit,
+        backfillTicketScreenshotsToNotion,
         backfillProjectBoardFormScope,
         backfillProposalBoardPublicIds,
         backfillClassNetworkPublicIds,

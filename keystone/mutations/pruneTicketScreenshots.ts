@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from "crypto";
+import { removeScreenshotFromNotion } from "../lib/notionMirror";
 
 // Deletes filing-time screenshots once their ticket has been resolved long
 // enough, so captures of live classes and boards do not accumulate forever.
@@ -74,7 +75,7 @@ async function pruneTicketScreenshots(
       status: { in: RESOLVED_STATUSES },
       resolvedAt: { lt: cutoff },
     },
-    query: "id title surface resolvedAt screenshot { id }",
+    query: "id title surface resolvedAt notionPageId screenshot { id }",
   });
 
   const stale = candidates.filter((ticket: any) => ticket.screenshot?.id);
@@ -85,6 +86,10 @@ async function pruneTicketScreenshots(
         where: { id: ticket.id },
         data: { screenshot: null },
       });
+      // The mirror uploaded a copy into Notion; expire it on the same
+      // schedule, or the 90-day promise only holds for half the copies.
+      // Best-effort — a Notion failure must not stop the local prune.
+      await removeScreenshotFromNotion(ticket.notionPageId);
     }
   }
 

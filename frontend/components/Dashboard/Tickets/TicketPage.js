@@ -257,7 +257,8 @@ export default function TicketPage({ id }) {
           {/* 90 days mirrors SCREENSHOT_RETENTION_DAYS in the backend's
               mutations/pruneTicketScreenshots.ts — keep the two in step. */}
           <Caption>
-            Deleted automatically once this ticket has been resolved for 90 days.
+            Also copied to the ticket&apos;s Notion page. Both copies are deleted
+            automatically once the ticket has been resolved for 90 days.
           </Caption>
         </Section>
       )}

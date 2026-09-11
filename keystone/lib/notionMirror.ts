@@ -1,4 +1,6 @@
 import { Client } from "@notionhq/client";
+import { readFile } from "fs/promises";
+import path from "path";
 
 /**
  * Mirrors tickets into Notion, one way.
@@ -152,11 +154,7 @@ function propertiesFor(ticket: any) {
 
 /**
  * The written description becomes page content rather than a property, so long
- * reports stay readable. Screenshots are deliberately NOT mirrored: a capture
- * can contain student names and responses, and in Keystone it is gated behind
- * canManageTickets and expires after 90 days. Copying it into Notion would put
- * it in front of a wider audience with no expiry. The Link property points back
- * to the ticket, where the image lives under its original access rules.
+ * reports stay readable.
  */
 function childrenFor(ticket: any) {
   const description = ticket.body?.text;
@@ -170,6 +168,132 @@ function childrenFor(ticket: any) {
   ];
 }
 
+/*
+ * Screenshots ARE mirrored — a deliberate decision, reversed from the first
+ * version, made knowing the tradeoff:
+ *
+ *   A capture can contain student names and responses. In MindHive it expires
+ *   90 days after the ticket is resolved. Copying it into Notion puts it in
+ *   front of whoever can open the Platform tickets page, so it is only
+ *   appropriate while that audience is the same people who hold
+ *   canManageTickets. If the Notion page is ever shared more widely, turn this
+ *   off (NOTION_MIRROR_SCREENSHOTS=false).
+ *
+ * The expiry is kept: pruneTicketScreenshots calls removeScreenshotFromNotion,
+ * so the Notion copy is removed on the same schedule. One caveat stated
+ * plainly — Notion's delete is a soft delete. A removed block sits in the
+ * workspace trash, restorable by members for up to 30 days, so the effective
+ * ceiling in Notion is 90 days plus that.
+ *
+ * The file is uploaded INTO Notion (its file upload API) rather than embedded
+ * by URL. An embed would hand Notion the public Keystone URL, and would break
+ * the moment screenshots require a login. It is read from disk for the same
+ * reason, never fetched over HTTP.
+ */
+
+/** Mirrors `storagePath` for ticketScreenshots in keystone.ts. */
+const SCREENSHOT_DIR = "ticket-screenshots";
+
+const CONTENT_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+function screenshotsEnabled(): boolean {
+  return process.env.NOTION_MIRROR_SCREENSHOTS !== "false";
+}
+
+/** Upload a ticket's screenshot into Notion and append it to the page. */
+async function attachScreenshot(notion: Client, pageId: string, screenshot: any) {
+  if (!screenshotsEnabled() || !screenshot?.id || !screenshot?.extension) return;
+
+  const extension = String(screenshot.extension).toLowerCase();
+  const contentType = CONTENT_TYPES[extension];
+  if (!contentType) return; // not an image Notion will render
+
+  // The image field stores "2026/09/<ts>-<rand>"; Keystone adds the extension.
+  const file = path.join(process.cwd(), SCREENSHOT_DIR, `${screenshot.id}.${extension}`);
+  const bytes = await readFile(file);
+  const filename = path.basename(file);
+
+  const upload: any = await notion.fileUploads.create({
+    mode: "single_part",
+    filename,
+    content_type: contentType,
+  });
+  await notion.fileUploads.send({
+    file_upload_id: upload.id,
+    file: { filename, data: new Blob([bytes], { type: contentType }) },
+  });
+  await notion.blocks.children.append({
+    block_id: pageId,
+    children: [
+      {
+        object: "block",
+        type: "image",
+        image: {
+          type: "file_upload",
+          file_upload: { id: upload.id },
+          caption: text(
+            "Screenshot at filing time. Removed automatically 90 days after the ticket is resolved."
+          ),
+        },
+      } as any,
+    ],
+  });
+}
+
+/** Whether a mirrored page already carries an image — keeps backfills idempotent. */
+async function pageHasImage(notion: Client, pageId: string): Promise<boolean> {
+  const { results }: any = await notion.blocks.children.list({ block_id: pageId });
+  return (results ?? []).some((block: any) => block.type === "image");
+}
+
+/**
+ * Upload a ticket's screenshot to its existing Notion page, if the page does
+ * not already have one. For tickets mirrored before screenshots were, and for
+ * catching up after NOTION_MIRROR_SCREENSHOTS is switched back on.
+ * Returns what happened, for the backfill's report.
+ */
+export async function backfillScreenshotToNotion(
+  context: any,
+  ticketId: string,
+  { dryRun = true }: { dryRun?: boolean } = {}
+): Promise<"attached" | "would-attach" | "already-there" | "no-screenshot" | "not-mirrored" | "disabled"> {
+  const notion = getClient();
+  if (!notion || !screenshotsEnabled()) return "disabled";
+  const ticket = await loadTicket(context, ticketId);
+  if (!ticket?.notionPageId) return "not-mirrored";
+  if (!ticket.screenshot?.id) return "no-screenshot";
+  if (await pageHasImage(notion, ticket.notionPageId)) return "already-there";
+  if (dryRun) return "would-attach";
+  await attachScreenshot(notion, ticket.notionPageId, ticket.screenshot);
+  return "attached";
+}
+
+/**
+ * Remove the screenshot from a mirrored page. Called by the prune job so the
+ * Notion copy expires on the same schedule as the original. The mirror only
+ * ever appends one image, so every image block on the page is ours.
+ */
+export async function removeScreenshotFromNotion(notionPageId: string | null): Promise<void> {
+  const notion = getClient();
+  if (!notion || !notionPageId) return;
+  try {
+    const { results }: any = await notion.blocks.children.list({ block_id: notionPageId });
+    for (const block of results ?? []) {
+      if (block.type === "image") await notion.blocks.delete({ block_id: block.id });
+    }
+  } catch (error: any) {
+    console.error(
+      `[notionMirror] screenshot removal failed for page ${notionPageId}: ${error?.message ?? error}`
+    );
+  }
+}
+
 /** Load the fields the mirror needs, with the reporter resolved. */
 async function loadTicket(context: any, id: string) {
   return context.sudo().query.Ticket.findOne({
@@ -179,6 +303,7 @@ async function loadTicket(context: any, id: string) {
       figmaDesignUrl
       reporter { username }
       assignee { username }
+      screenshot { id extension }
     `,
   });
 }
@@ -204,6 +329,17 @@ export async function mirrorCreate(context: any, ticketId: string): Promise<void
       where: { id: ticketId },
       data: { notionPageId: page.id },
     });
+
+    // After the page id is saved, so a failed upload still leaves a correctly
+    // linked page rather than an unlinked one. Its own try: a screenshot that
+    // will not upload must not be reported as a failed mirror.
+    try {
+      await attachScreenshot(notion, page.id, ticket.screenshot);
+    } catch (error: any) {
+      console.error(
+        `[notionMirror] screenshot upload failed for ticket ${ticketId}: ${error?.message ?? error}`
+      );
+    }
   } catch (error: any) {
     console.error(
       `[notionMirror] create failed for ticket ${ticketId}: ${error?.message ?? error}`
