@@ -292,6 +292,12 @@ export default function MilestoneCardBuilder({
     setWizardOpen(true);
   };
 
+  const closeWizard = () => {
+    setWizardOpen(false);
+    setWizardDefinitionId(null);
+    setWizardMilestoneKey(null);
+  };
+
   const persistCapability = async (nextCapability) => {
     if (!canEditCapability || !milestone?.id || capabilityBusy) return;
     if (nextCapability === capability) return;
@@ -858,93 +864,190 @@ export default function MilestoneCardBuilder({
             </section>
           ) : null}
 
-          {capability === CAPABILITY_REVIEW && isClassTemplate ? (
+          {capability === CAPABILITY_REVIEW ? (
             <section style={{ ...sectionStyle, marginBottom: 8 }}>
               <p style={questionLabelStyle}>
                 {t(
-                  "board.expendedCard.milestoneCard.formTemplateLabel",
+                  "board.expendedCard.milestoneCard.associatedCardsTitle",
                   {},
-                  { default: "Review form" }
+                  { default: "Cards associated with this milestone" }
                 )}
               </p>
+              <p style={helperTextStyle}>
+                {t(
+                  "board.expendedCard.milestoneCard.associatedCardsHelper",
+                  {},
+                  {
+                    default:
+                      "The following cards are associated with this milestone. When students submit them, their content is published in Feedback Center so mentors and peers can review it.",
+                  }
+                )}
+              </p>
+              {includedCardsLoading ? (
+                <p style={helperTextStyle}>
+                  {t("board.loading", {}, { default: "Loading..." })}
+                </p>
+              ) : includedCards.length > 0 ? (
+                <ul style={associatedCardsListStyle}>
+                  {includedCards.map((card) => {
+                    const cardLabel = card.sectionTitle
+                      ? t(
+                          "board.expendedCard.milestoneCard.associatedCardLabel",
+                          {
+                            title:
+                              card.title ||
+                              t("board.proposal", {}, { default: "Proposal" }),
+                            section: card.sectionTitle,
+                          },
+                          { default: "{{title}} ({{section}})" }
+                        )
+                      : card.title ||
+                        t("board.proposal", {}, { default: "Proposal" });
 
-              {hasAttachedReviewForm ? (
-                <>
-                  <ReviewFormAttachmentCard
-                    board={boardWithSections}
-                    milestone={milestone}
-                    isDefault={isDefault}
-                    editBusy={editBusy}
-                    onPreview={() => setFormPreviewOpen(true)}
-                    onEdit={
-                      isDefault
-                        ? canCopyForm
-                          ? copyMilestoneToCustomize
-                          : null
-                        : () => {
-                            openFormEditor(null);
-                          }
-                    }
-                  />
-                  {isTemplateMilestone && hasBoardScopedForm ? (
-                    <>
-                      <div style={{ ...formActionsStyle, marginTop: 16 }}>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={editBusy}
-                          onClick={() =>
-                            openFormEditor(null, { replace: true })
-                          }
-                        >
-                          {editBusy
-                            ? t(
-                                "board.expendedCard.actionCard.openingEditor",
-                                {},
-                                { default: "Opening editor…" }
-                              )
-                            : t(
-                                "board.expendedCard.milestoneCard.createFromScratch",
-                                {},
-                                { default: "Create from scratch" }
-                              )}
-                        </Button>
-                        <DropdownMenu
-                          ariaLabel={t(
-                            "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
-                            {},
-                            { default: "From MindHive template" }
-                          )}
-                          renderTrigger={({ onClick, open, ariaLabel }) => (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              disabled={editBusy}
-                              aria-expanded={open}
-                              aria-haspopup="menu"
-                              aria-label={ariaLabel}
-                              onClick={onClick}
-                            >
-                              {t(
-                                "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
-                                {},
-                                { default: "From MindHive template" }
-                              )}
-                            </Button>
-                          )}
-                          items={formTemplateOptions.map((option) => ({
-                            key: option.value,
-                            label: option.label,
-                            onClick: () =>
-                              openFormEditor(option.value, { replace: true }),
-                          }))}
+                    return (
+                      <li key={card.id}>
+                        <Chip
+                          label={cardLabel}
+                          disabled
+                          style={{
+                            background:
+                              "var(--MH-Theme-Neutrals-White, #FFFFFF)",
+                          }}
                         />
-                        {relinkableBoardForms.length > 0 ? (
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p style={{ ...helperTextStyle, fontStyle: "italic" }}>
+                  {t(
+                    "board.expendedCard.milestoneCard.associatedCardsEmpty",
+                    {},
+                    {
+                      default:
+                        "No cards are associated with this milestone yet. To associate a card, enable \"Include text input for Feedback Center\" in that card's Student Answer Box settings.",
+                    }
+                  )}
+                </p>
+              )}
+            </section>
+          ) : null}
+        </div>
+
+        {wizardOpen ? (
+          <div className="milestoneReviewFormEditorPanel">
+            <TeacherFormWizard
+              open
+              presentation="page"
+              onClose={closeWizard}
+              mode="review"
+              proposalBoardId={proposal?.id}
+              definitionId={wizardDefinitionId}
+              milestoneKey={wizardMilestoneKey}
+            />
+          </div>
+        ) : (
+          <div
+            className={clsx("infoBoard", {
+              infoBoardEdit: hideBoardChromeNav,
+              milestoneReviewFormPanel: capability === CAPABILITY_REVIEW,
+            })}
+          >
+            {capability === CAPABILITY_DATA_COLLECTION ? (
+              <>
+                <div className="cardHeader">
+                  {t(
+                    "board.expendedCard.milestoneCard.dataCollectionPanelTitle",
+                    {},
+                    { default: "Study builder connection" }
+                  )}
+                </div>
+                <Chip
+                  label={t(
+                    "board.expendedCard.milestoneCard.dataCollectionPanelChip",
+                    {},
+                    { default: "Data collection milestone" }
+                  )}
+                  disabled
+                  style={{
+                    marginTop: 4,
+                    background: "var(--MH-Theme-Neutrals-Lighter, #F3F3F3)",
+                    border:
+                      "1px solid var(--MH-Theme-Neutrals-Light, #E6E6E6)",
+                    color: "var(--MH-Theme-Neutrals-Dark, #5D5763)",
+                  }}
+                />
+                <p style={helperTextStyle}>
+                  {t(
+                    "board.expendedCard.milestoneCard.dataCollectionPanelHelper",
+                    {},
+                    {
+                      default:
+                        "This milestone is connected to the study builder that students link to this project board. When students submit it, their study builder is locked and their study becomes available for data collection.",
+                    }
+                  )}
+                </p>
+              </>
+            ) : isClassTemplate ? (
+              <>
+                <div className="cardHeader">
+                  {t(
+                    "board.expendedCard.milestoneCard.formTemplateLabel",
+                    {},
+                    { default: "Review form" }
+                  )}
+                </div>
+
+                {hasAttachedReviewForm ? (
+                  <>
+                    <ReviewFormAttachmentCard
+                      board={boardWithSections}
+                      milestone={milestone}
+                      isDefault={isDefault}
+                      editBusy={editBusy}
+                      onPreview={() => setFormPreviewOpen(true)}
+                      onEdit={
+                        isDefault
+                          ? canCopyForm
+                            ? copyMilestoneToCustomize
+                            : null
+                          : isTemplateMilestone
+                            ? () => {
+                                openFormEditor(null);
+                              }
+                            : canCopyForm
+                              ? copyMilestoneToCustomize
+                              : null
+                      }
+                    />
+                    {isTemplateMilestone && hasBoardScopedForm ? (
+                      <>
+                        <div style={{ ...formActionsStyle, marginTop: 16 }}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={editBusy}
+                            onClick={() =>
+                              openFormEditor(null, { replace: true })
+                            }
+                          >
+                            {editBusy
+                              ? t(
+                                  "board.expendedCard.actionCard.openingEditor",
+                                  {},
+                                  { default: "Opening editor…" }
+                                )
+                              : t(
+                                  "board.expendedCard.milestoneCard.createFromScratch",
+                                  {},
+                                  { default: "Create from scratch" }
+                                )}
+                          </Button>
                           <DropdownMenu
                             ariaLabel={t(
-                              "board.expendedCard.milestoneCard.useBoardForm",
+                              "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
                               {},
-                              { default: "From this board" }
+                              { default: "From MindHive template" }
                             )}
                             renderTrigger={({ onClick, open, ariaLabel }) => (
                               <Button
@@ -957,133 +1060,140 @@ export default function MilestoneCardBuilder({
                                 onClick={onClick}
                               >
                                 {t(
-                                  "board.expendedCard.milestoneCard.useBoardForm",
+                                  "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
                                   {},
-                                  { default: "From this board" }
+                                  { default: "From MindHive template" }
                                 )}
                               </Button>
                             )}
-                            items={relinkableBoardForms.map((form) => ({
-                              key: form.id,
-                              label:
-                                form.title ||
-                                t(
-                                  "board.expendedCard.milestoneCard.reviewFormFallbackTitle",
-                                  {},
-                                  { default: "Review form" }
-                                ),
-                              onClick: () => relinkBoardForm(form.id),
+                            items={formTemplateOptions.map((option) => ({
+                              key: option.value,
+                              label: option.label,
+                              onClick: () =>
+                                openFormEditor(option.value, {
+                                  replace: true,
+                                }),
                             }))}
                           />
-                        ) : null}
-                        <Button
-                          type="button"
-                          variant="text"
-                          disabled={editBusy}
-                          onClick={() => setConfirmRemoveFormOpen(true)}
-                        >
-                          {editBusy
-                            ? t(
-                                "board.expendedCard.milestoneCard.removingReviewForm",
+                          {relinkableBoardForms.length > 0 ? (
+                            <DropdownMenu
+                              ariaLabel={t(
+                                "board.expendedCard.milestoneCard.useBoardForm",
                                 {},
-                                { default: "Unlinking…" }
-                              )
-                            : t(
-                                "board.expendedCard.milestoneCard.removeReviewForm",
-                                {},
-                                { default: "Unlink" }
+                                { default: "From this board" }
                               )}
-                        </Button>
-                      </div>
-                      <p style={helperTextStyle}>
-                        {t(
-                          "board.expendedCard.milestoneCard.replaceReviewFormHint",
-                          {},
-                          {
-                            default:
-                              "Replace this form, pick one already on this board, or unlink it (it stays available to re-link).",
-                          }
-                        )}
-                      </p>
-                    </>
-                  ) : (
-                    <p style={helperTextStyle}>
-                      {isDefault
-                        ? t(
-                            "board.expendedCard.actionCard.copyToCustomizeHint",
-                            {},
-                            {
-                              default:
-                                "Default forms cannot be edited. Copy this milestone to create a custom milestone you can change.",
-                            }
-                          )
-                        : t(
-                            "board.expendedCard.actionCard.editReviewFormHint",
-                            {},
-                            {
-                              default:
-                                "Scoped to this template board. Student clones inherit whatever you publish.",
-                            }
-                          )}
-                    </p>
-                  )}
-                </>
-              ) : isTemplateMilestone ? (
-                <>
-                  <div style={formActionsStyle}>
-                    <Button
-                      type="button"
-                      variant="filled"
-                      disabled={editBusy}
-                      onClick={() => openFormEditor(null)}
-                    >
-                      {editBusy
-                        ? t(
-                            "board.expendedCard.actionCard.openingEditor",
-                            {},
-                            { default: "Opening editor…" }
-                          )
-                        : t(
-                            "board.expendedCard.milestoneCard.createFromScratch",
-                            {},
-                            { default: "Create from scratch" }
-                          )}
-                    </Button>
-                    <DropdownMenu
-                      ariaLabel={t(
-                        "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
-                        {},
-                        { default: "From MindHive template" }
-                      )}
-                      renderTrigger={({ onClick, open, ariaLabel }) => (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={editBusy}
-                          aria-expanded={open}
-                          aria-haspopup="menu"
-                          aria-label={ariaLabel}
-                          onClick={onClick}
-                        >
+                              renderTrigger={({
+                                onClick,
+                                open,
+                                ariaLabel,
+                              }) => (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  disabled={editBusy}
+                                  aria-expanded={open}
+                                  aria-haspopup="menu"
+                                  aria-label={ariaLabel}
+                                  onClick={onClick}
+                                >
+                                  {t(
+                                    "board.expendedCard.milestoneCard.useBoardForm",
+                                    {},
+                                    { default: "From this board" }
+                                  )}
+                                </Button>
+                              )}
+                              items={relinkableBoardForms.map((form) => ({
+                                key: form.id,
+                                label:
+                                  form.title ||
+                                  t(
+                                    "board.expendedCard.milestoneCard.reviewFormFallbackTitle",
+                                    {},
+                                    { default: "Review form" }
+                                  ),
+                                onClick: () => relinkBoardForm(form.id),
+                              }))}
+                            />
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="text"
+                            disabled={editBusy}
+                            onClick={() => setConfirmRemoveFormOpen(true)}
+                          >
+                            {editBusy
+                              ? t(
+                                  "board.expendedCard.milestoneCard.removingReviewForm",
+                                  {},
+                                  { default: "Unlinking…" }
+                                )
+                              : t(
+                                  "board.expendedCard.milestoneCard.removeReviewForm",
+                                  {},
+                                  { default: "Unlink" }
+                                )}
+                          </Button>
+                        </div>
+                        <p style={helperTextStyle}>
                           {t(
-                            "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
+                            "board.expendedCard.milestoneCard.replaceReviewFormHint",
                             {},
-                            { default: "From MindHive template" }
+                            {
+                              default:
+                                "Replace this form, pick one already on this board, or unlink it (it stays available to re-link).",
+                            }
                           )}
-                        </Button>
-                      )}
-                      items={formTemplateOptions.map((option) => ({
-                        key: option.value,
-                        label: option.label,
-                        onClick: () => openFormEditor(option.value),
-                      }))}
-                    />
-                    {relinkableBoardForms.length > 0 ? (
+                        </p>
+                      </>
+                    ) : (
+                      <p style={helperTextStyle}>
+                        {isDefault
+                          ? t(
+                              "board.expendedCard.actionCard.copyToCustomizeHint",
+                              {},
+                              {
+                                default:
+                                  "Default forms cannot be edited. Copy this milestone to create a custom milestone you can change.",
+                              }
+                            )
+                          : t(
+                              "board.expendedCard.actionCard.editReviewFormHint",
+                              {},
+                              {
+                                default:
+                                  "Scoped to this template board. Student clones inherit whatever you publish.",
+                              }
+                            )}
+                      </p>
+                    )}
+                  </>
+                ) : isTemplateMilestone ? (
+                  <>
+                    <div style={formActionsStyle}>
+                      <Button
+                        type="button"
+                        variant="filled"
+                        disabled={editBusy}
+                        onClick={() => openFormEditor(null)}
+                      >
+                        {editBusy
+                          ? t(
+                              "board.expendedCard.actionCard.openingEditor",
+                              {},
+                              { default: "Opening editor…" }
+                            )
+                          : t(
+                              "board.expendedCard.milestoneCard.createFromScratch",
+                              {},
+                              { default: "Create from scratch" }
+                            )}
+                      </Button>
                       <DropdownMenu
                         ariaLabel={t(
-                          "board.expendedCard.milestoneCard.useBoardForm",
+                          "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
                           {},
-                          { default: "From this board" }
+                          { default: "From MindHive template" }
                         )}
                         renderTrigger={({ onClick, open, ariaLabel }) => (
                           <Button
@@ -1096,26 +1206,101 @@ export default function MilestoneCardBuilder({
                             onClick={onClick}
                           >
                             {t(
-                              "board.expendedCard.milestoneCard.useBoardForm",
+                              "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
                               {},
-                              { default: "From this board" }
+                              { default: "From MindHive template" }
                             )}
                           </Button>
                         )}
-                        items={relinkableBoardForms.map((form) => ({
-                          key: form.id,
-                          label:
-                            form.title ||
-                            t(
-                              "board.expendedCard.milestoneCard.reviewFormFallbackTitle",
-                              {},
-                              { default: "Review form" }
-                            ),
-                          onClick: () => relinkBoardForm(form.id),
+                        items={formTemplateOptions.map((option) => ({
+                          key: option.value,
+                          label: option.label,
+                          onClick: () => openFormEditor(option.value),
                         }))}
                       />
-                    ) : null}
-                  </div>
+                      {relinkableBoardForms.length > 0 ? (
+                        <DropdownMenu
+                          ariaLabel={t(
+                            "board.expendedCard.milestoneCard.useBoardForm",
+                            {},
+                            { default: "From this board" }
+                          )}
+                          renderTrigger={({ onClick, open, ariaLabel }) => (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={editBusy}
+                              aria-expanded={open}
+                              aria-haspopup="menu"
+                              aria-label={ariaLabel}
+                              onClick={onClick}
+                            >
+                              {t(
+                                "board.expendedCard.milestoneCard.useBoardForm",
+                                {},
+                                { default: "From this board" }
+                              )}
+                            </Button>
+                          )}
+                          items={relinkableBoardForms.map((form) => ({
+                            key: form.id,
+                            label:
+                              form.title ||
+                              t(
+                                "board.expendedCard.milestoneCard.reviewFormFallbackTitle",
+                                {},
+                                { default: "Review form" }
+                              ),
+                            onClick: () => relinkBoardForm(form.id),
+                          }))}
+                        />
+                      ) : null}
+                    </div>
+                    <p style={helperTextStyle}>
+                      {t(
+                        "board.expendedCard.milestoneCard.boardFormsHint",
+                        {},
+                        {
+                          default:
+                            "Forms you create stay on this template board and can be re-linked later.",
+                        }
+                      )}
+                    </p>
+                  </>
+                ) : canCopyForm ? (
+                  <>
+                    <div style={formActionsStyle}>
+                      <Button
+                        type="button"
+                        variant="filled"
+                        disabled={editBusy}
+                        onClick={copyMilestoneToCustomize}
+                      >
+                        {editBusy
+                          ? t(
+                              "board.expendedCard.actionCard.openingEditor",
+                              {},
+                              { default: "Opening editor…" }
+                            )
+                          : t(
+                              "board.expendedCard.milestoneCard.customizeMindHiveTemplate",
+                              {},
+                              { default: "Customize the MindHive template" }
+                            )}
+                      </Button>
+                    </div>
+                    <p style={helperTextStyle}>
+                      {t(
+                        "board.expendedCard.actionCard.copyToCustomizeHint",
+                        {},
+                        {
+                          default:
+                            "Default forms cannot be edited. Copy this milestone to create a custom milestone you can change.",
+                        }
+                      )}
+                    </p>
+                  </>
+                ) : (
                   <p style={helperTextStyle}>
                     {t(
                       "board.expendedCard.milestoneCard.boardFormsHint",
@@ -1126,114 +1311,11 @@ export default function MilestoneCardBuilder({
                       }
                     )}
                   </p>
-                </>
-              ) : null}
-            </section>
-          ) : null}
-        </div>
-
-        <div
-          className={clsx("infoBoard", {
-            infoBoardEdit: hideBoardChromeNav,
-          })}
-        >
-          <div className="cardHeader">
-            {capability === CAPABILITY_DATA_COLLECTION
-              ? t(
-                  "board.expendedCard.milestoneCard.dataCollectionPanelTitle",
-                  {},
-                  { default: "Study builder connection" }
-                )
-              : t(
-                  "board.expendedCard.milestoneCard.associatedCardsTitle",
-                  {},
-                  { default: "Cards associated with this milestone" }
                 )}
+              </>
+            ) : null}
           </div>
-          {capability === CAPABILITY_DATA_COLLECTION ? (
-            <Chip
-              label={t(
-                "board.expendedCard.milestoneCard.dataCollectionPanelChip",
-                {},
-                { default: "Data collection milestone" }
-              )}
-              disabled
-              style={{
-                marginTop: 4,
-                background: "var(--MH-Theme-Neutrals-Lighter, #F3F3F3)",
-                border: "1px solid var(--MH-Theme-Neutrals-Light, #E6E6E6)",
-                color: "var(--MH-Theme-Neutrals-Dark, #5D5763)",
-              }}
-            />
-          ) : null}
-          <p style={helperTextStyle}>
-            {capability === CAPABILITY_DATA_COLLECTION
-              ? t(
-                  "board.expendedCard.milestoneCard.dataCollectionPanelHelper",
-                  {},
-                  {
-                    default:
-                      "This milestone is connected to the study builder that students link to this project board. When students submit it, their study builder is locked and their study becomes available for data collection.",
-                  }
-                )
-              : t(
-                  "board.expendedCard.milestoneCard.associatedCardsHelper",
-                  {},
-                  {
-                    default:
-                      "The following cards are associated with this milestone. When students submit them, their content is published in Feedback Center so mentors and peers can review it.",
-                  }
-                )}
-          </p>
-          {capability === CAPABILITY_REVIEW ? (
-            includedCardsLoading ? (
-              <p style={helperTextStyle}>
-                {t("board.loading", {}, { default: "Loading..." })}
-              </p>
-            ) : includedCards.length > 0 ? (
-              <ul style={associatedCardsListStyle}>
-                {includedCards.map((card) => {
-                  const cardLabel = card.sectionTitle
-                    ? t(
-                        "board.expendedCard.milestoneCard.associatedCardLabel",
-                        {
-                          title:
-                            card.title ||
-                            t("board.proposal", {}, { default: "Proposal" }),
-                          section: card.sectionTitle,
-                        },
-                        { default: "{{title}} ({{section}})" }
-                      )
-                    : card.title ||
-                      t("board.proposal", {}, { default: "Proposal" });
-
-                  return (
-                    <li key={card.id}>
-                      <Chip
-                        label={cardLabel}
-                        disabled
-                        style={{
-                          background: "var(--MH-Theme-Neutrals-White, #FFFFFF)",
-                        }}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p style={{ ...helperTextStyle, fontStyle: "italic" }}>
-                {t(
-                  "board.expendedCard.milestoneCard.associatedCardsEmpty",
-                  {},
-                  {
-                    default:
-                      "No cards are associated with this milestone yet. To associate a card, enable \"Include text input for Feedback Center\" in that card's Student Answer Box settings.",
-                  }
-                )}
-              </p>
-            )
-          ) : null}
-        </div>
+        )}
       </div>
 
       <Modal
@@ -1369,18 +1451,6 @@ export default function MilestoneCardBuilder({
         copyBusy={editBusy}
       />
 
-      <TeacherFormWizard
-        open={wizardOpen}
-        onClose={() => {
-          setWizardOpen(false);
-          setWizardDefinitionId(null);
-          setWizardMilestoneKey(null);
-        }}
-        mode="review"
-        proposalBoardId={proposal?.id}
-        definitionId={wizardDefinitionId}
-        milestoneKey={wizardMilestoneKey}
-      />
     </div>
   );
 }

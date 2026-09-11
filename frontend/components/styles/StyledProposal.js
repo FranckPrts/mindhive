@@ -1633,6 +1633,24 @@ export const StyledProposal = styled.div`
         }
       }
     }
+    .milestoneReviewFormEditorPanel {
+      display: flex;
+      flex: 1 0 0;
+      align-self: stretch;
+      width: 100%;
+      max-width: 500px;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+
+      > section {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        max-height: none;
+      }
+    }
+
     .infoBoard {
       display: flex;
       max-width: 500px;
@@ -1652,6 +1670,21 @@ export const StyledProposal = styled.div`
       &.infoBoardEdit {
         border-radius: 8px;
         border-top: 1px solid var(--MH-Theme-Neutrals-Light, #E6E6E6);
+      }
+
+      &.milestoneReviewFormPanel {
+        gap: 12px;
+        overflow-y: auto;
+        max-height: 100%;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        &::-webkit-scrollbar {
+          display: none;
+        }
+
+        .cardHeader {
+          margin-bottom: 0;
+        }
       }
 
       .collaboratorArray {
