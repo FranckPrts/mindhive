@@ -141,6 +141,7 @@ export default function TicketOverlay() {
   const figmaParsed = parseFigmaUrl(form.figmaDesignUrl);
   const figmaSummary = describeFigmaUrl(form.figmaDesignUrl);
   const figmaHasNode = !!figmaParsed?.nodeId;
+  const figmaInvalid = form.figmaDesignUrl.trim() !== "" && !figmaSummary;
 
   const { data, refetch } = useQuery(GET_TICKETS_FOR_SURFACE, {
     variables: { surface: surfaceKey },
@@ -270,6 +271,14 @@ export default function TicketOverlay() {
   async function submit(event) {
     event.preventDefault();
     if (!form.title.trim() || !surfaceKey) return;
+    // Caught here rather than left to the server: by the time the server
+    // rejects a link, the screenshot has already been uploaded, and a rejected
+    // upload stays on disk until the weekly prune sweeps it.
+    if (figmaInvalid) {
+      setError("That Figma link is not a figma.com link. Fix it or clear it to file the ticket.");
+      document.getElementById("mh-ticket-figma")?.focus();
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -488,6 +497,7 @@ export default function TicketOverlay() {
                   onChange={set("figmaDesignUrl")}
                   placeholder="Paste a Figma link"
                   aria-describedby="mh-ticket-figma-hint"
+                  aria-invalid={figmaInvalid || undefined}
                 />
                 {/* Parsed live so a wrong paste — a prototype link, a URL with
                     no node-id, a page that is not Figma — is visible here

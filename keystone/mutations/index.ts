@@ -108,6 +108,8 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         cutoff: String!
         prunedCount: Int!
         pruned: [String!]!
+        orphanCount: Int!
+        orphans: [String!]!
       }
       type BackfillTicketPermissionsResult {
         dryRun: Boolean!

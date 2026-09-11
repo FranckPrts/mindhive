@@ -51,7 +51,7 @@ jobs:
             --arg secret "$WEBHOOK_SECRET" \
             --argjson dryRun "$DRY_RUN" \
             '{
-              query: "mutation($secret: String!, $dryRun: Boolean) { pruneTicketScreenshots(secret: $secret, dryRun: $dryRun) { dryRun retentionDays cutoff prunedCount pruned } }",
+              query: "mutation($secret: String!, $dryRun: Boolean) { pruneTicketScreenshots(secret: $secret, dryRun: $dryRun) { dryRun retentionDays cutoff prunedCount pruned orphanCount orphans } }",
               variables: { secret: $secret, dryRun: $dryRun }
             }')
 
@@ -67,6 +67,7 @@ jobs:
 
           echo "$RESPONSE" | jq -r '
             .data.pruneTicketScreenshots
-            | "dryRun=\(.dryRun)  retention=\(.retentionDays)d  cutoff=\(.cutoff)  pruned=\(.prunedCount)",
-              (.pruned[] | "  - \(.)")
+            | "dryRun=\(.dryRun)  retention=\(.retentionDays)d  cutoff=\(.cutoff)  pruned=\(.prunedCount)  orphaned files=\(.orphanCount)",
+              (.pruned[] | "  - \(.)"),
+              (.orphans[] | "  - unreferenced: \(.)")
           '

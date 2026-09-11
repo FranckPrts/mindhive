@@ -209,18 +209,21 @@ function screenshotsEnabled(): boolean {
 const FILING_CAPTION =
   "Screenshot at filing time. Removed automatically 90 days after the ticket is resolved.";
 
-/** Upload an image (a screenshot or a markup of one) into Notion and append it to the page. */
+/**
+ * Upload an image (a screenshot or a markup of one) into Notion and append it
+ * to the page. Returns the new block's id, or null if nothing was attached.
+ */
 async function attachScreenshot(
   notion: Client,
   pageId: string,
   screenshot: any,
   caption: string = FILING_CAPTION
-) {
-  if (!screenshotsEnabled() || !screenshot?.id || !screenshot?.extension) return;
+): Promise<string | null> {
+  if (!screenshotsEnabled() || !screenshot?.id || !screenshot?.extension) return null;
 
   const extension = String(screenshot.extension).toLowerCase();
   const contentType = CONTENT_TYPES[extension];
-  if (!contentType) return; // not an image Notion will render
+  if (!contentType) return null; // not an image Notion will render
 
   // The image field stores "2026/09/<ts>-<rand>"; Keystone adds the extension.
   const file = path.join(process.cwd(), SCREENSHOT_DIR, `${screenshot.id}.${extension}`);
@@ -236,7 +239,7 @@ async function attachScreenshot(
     file_upload_id: upload.id,
     file: { filename, data: new Blob([bytes], { type: contentType }) },
   });
-  await notion.blocks.children.append({
+  const appended: any = await notion.blocks.children.append({
     block_id: pageId,
     children: [
       {
@@ -250,12 +253,33 @@ async function attachScreenshot(
       } as any,
     ],
   });
+  return appended?.results?.[0]?.id ?? null;
+}
+
+/**
+ * Ids of every image block on a mirrored page. Paginated: a long description
+ * plus a markup from each collaborator can run past the API's 100 per page,
+ * and an image on page two would otherwise survive the prune.
+ */
+async function imageBlockIds(notion: Client, pageId: string): Promise<string[]> {
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page: any = await notion.blocks.children.list({
+      block_id: pageId,
+      start_cursor: cursor,
+    });
+    for (const block of page.results ?? []) {
+      if (block.type === "image") ids.push(block.id);
+    }
+    cursor = page.has_more ? page.next_cursor : undefined;
+  } while (cursor);
+  return ids;
 }
 
 /** Whether a mirrored page already carries an image — keeps backfills idempotent. */
 async function pageHasImage(notion: Client, pageId: string): Promise<boolean> {
-  const { results }: any = await notion.blocks.children.list({ block_id: pageId });
-  return (results ?? []).some((block: any) => block.type === "image");
+  return (await imageBlockIds(notion, pageId)).length > 0;
 }
 
 /**
@@ -301,10 +325,53 @@ export async function mirrorAnnotation(context: any, annotationId: string): Prom
     const caption =
       `Annotated by ${who} on ${when}${note ? ` — ${note}` : ""}. ` +
       "Removed with the screenshot, 90 days after the ticket is resolved.";
-    await attachScreenshot(notion, annotation.ticket.notionPageId, annotation.image, caption);
+    const blockId = await attachScreenshot(
+      notion,
+      annotation.ticket.notionPageId,
+      annotation.image,
+      caption
+    );
+    // Kept so deleting the annotation removes exactly this image from the page.
+    if (blockId) {
+      await context.sudo().db.TicketAnnotation.updateOne({
+        where: { id: annotationId },
+        data: { notionBlockId: blockId },
+      });
+    }
   } catch (error: any) {
     console.error(
       `[notionMirror] annotation mirror failed for ${annotationId}: ${error?.message ?? error}`
+    );
+  }
+}
+
+/** Remove one mirrored markup — its annotation was deleted in MindHive. */
+export async function removeNotionBlock(blockId: string | null): Promise<void> {
+  const notion = getClient();
+  if (!notion || !blockId) return;
+  try {
+    await notion.blocks.delete({ block_id: blockId });
+  } catch (error: any) {
+    console.error(
+      `[notionMirror] removing block ${blockId} failed: ${error?.message ?? error}`
+    );
+  }
+}
+
+/**
+ * Move a deleted ticket's page to Notion's trash. The mirror is one way, so a
+ * page for a ticket that no longer exists is drift — and it still carries the
+ * ticket's screenshots, which the prune could then never reach. Trash is the
+ * only delete the API offers; members can restore the page for 30 days.
+ */
+export async function trashNotionPage(notionPageId: string | null): Promise<void> {
+  const notion = getClient();
+  if (!notion || !notionPageId) return;
+  try {
+    await notion.pages.update({ page_id: notionPageId, in_trash: true });
+  } catch (error: any) {
+    console.error(
+      `[notionMirror] trashing page ${notionPageId} failed: ${error?.message ?? error}`
     );
   }
 }
@@ -319,9 +386,9 @@ export async function removeScreenshotFromNotion(notionPageId: string | null): P
   const notion = getClient();
   if (!notion || !notionPageId) return;
   try {
-    const { results }: any = await notion.blocks.children.list({ block_id: notionPageId });
-    for (const block of results ?? []) {
-      if (block.type === "image") await notion.blocks.delete({ block_id: block.id });
+    // Collected before deleting, so removals cannot shift the pagination.
+    for (const blockId of await imageBlockIds(notion, notionPageId)) {
+      await notion.blocks.delete({ block_id: blockId });
     }
   } catch (error: any) {
     console.error(

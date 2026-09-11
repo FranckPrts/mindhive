@@ -1,7 +1,7 @@
 import { list } from "@keystone-6/core";
 import { text, image, relationship, timestamp } from "@keystone-6/core/fields";
 import { permissions } from "../access";
-import { mirrorAnnotation } from "../lib/notionMirror";
+import { mirrorAnnotation, removeNotionBlock } from "../lib/notionMirror";
 
 /**
  * One collaborator's markup of a ticket's screenshot.
@@ -37,6 +37,13 @@ export const TicketAnnotation = list({
     image: image({ storage: "ticketScreenshots" }),
     /** What the marks mean, in words. Kept after the image is pruned. */
     note: text(),
+    /** The image block on the ticket's Notion page. Set by the Notion mirror, never by a human. */
+    notionBlockId: text({
+      ui: {
+        itemView: { fieldMode: "read" },
+        description: "Written by the Notion mirror. Do not edit.",
+      },
+    }),
     createdAt: timestamp({ defaultValue: { kind: "now" } }),
   },
   hooks: {
@@ -50,9 +57,15 @@ export const TicketAnnotation = list({
     },
 
     // After the write, so a Notion problem can never block saving a markup.
-    afterOperation: async ({ operation, item, context }) => {
+    afterOperation: async ({ operation, item, originalItem, context }) => {
       if (operation === "create" && item?.id) {
         await mirrorAnnotation(context, String(item.id));
+      }
+      // Deleting a markup takes its copy off the Notion page as well. Left
+      // there, it would outlive the original until the ticket's screenshots
+      // expire — or for good, on a ticket that is never resolved.
+      if (operation === "delete") {
+        await removeNotionBlock((originalItem as any)?.notionBlockId || null);
       }
     },
   },

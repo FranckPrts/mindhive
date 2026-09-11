@@ -12,6 +12,7 @@ import {
   mirrorCreate,
   mirrorUpdate,
   touchesMirroredField,
+  trashNotionPage,
 } from "../lib/notionMirror";
 
 /**
@@ -186,11 +187,13 @@ export const Ticket = list({
       if (data.figmaDesignUrl === null) data.figmaDesignUrl = "";
 
       // A wrong link is worse than none: it looks authoritative and only
-      // fails when someone clicks it. Empty is always allowed.
+      // fails when someone clicks it. Empty is always allowed. The link kinds
+      // must match FIGMA_URL in the frontend's lib/figmaUrl.js — when they
+      // differed, the panel called a Make link valid and this rejected it.
       const url = data.figmaDesignUrl;
       if (typeof url === "string" && url.trim() !== "") {
         const trimmed = url.trim();
-        if (!/^https:\/\/(www\.)?figma\.com\/(design|file|board|proto)\//.test(trimmed)) {
+        if (!/^https:\/\/(www\.)?figma\.com\/(design|file|board|proto|make)\//.test(trimmed)) {
           throw new Error(
             "figmaDesignUrl must be a figma.com link, e.g. https://www.figma.com/design/<key>/<name>?node-id=1-2"
           );
@@ -201,11 +204,33 @@ export const Ticket = list({
       return data;
     },
 
+    // Keystone does not cascade deletes. Without this, a deleted ticket's
+    // markups would be left pointing at nothing, and the prune — which
+    // reaches images only through resolved tickets — would never expire
+    // them. Deleting through the API rather than Prisma runs each markup's
+    // own hooks, so its file leaves the disk and its copy leaves Notion.
+    beforeOperation: async ({ operation, item, context }) => {
+      if (operation !== "delete" || !item) return;
+      const annotations = await context.sudo().db.TicketAnnotation.findMany({
+        where: { ticket: { id: { equals: String((item as any).id) } } },
+      });
+      if (annotations.length) {
+        await context.sudo().db.TicketAnnotation.deleteMany({
+          where: annotations.map((annotation: any) => ({ id: String(annotation.id) })),
+        });
+      }
+    },
+
     // Mirrors to Notion after the write has landed, so a Notion problem can
     // never roll back or block a ticket. `mirrorCreate` writes notionPageId
     // back with sudo, which re-enters this hook — harmless, because
     // notionPageId is not a mirrored field, so the guard below stops there.
-    afterOperation: async ({ operation, item, resolvedData, context }) => {
+    afterOperation: async ({ operation, item, originalItem, resolvedData, context }) => {
+      if (operation === "delete") {
+        await trashNotionPage((originalItem as any)?.notionPageId || null);
+        return;
+      }
+
       const id = (item as any)?.id;
       if (!id) return;
 
