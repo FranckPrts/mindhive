@@ -35,7 +35,7 @@ const SearchInput = styled.input`
   width: 100%;
   max-width: 240px;
   padding: 10px 14px;
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #d3dae0);
+  border: 1px solid #d3dae0;
   border-radius: 12px;
   background: var(--MH-Theme-Neutrals-White, #ffffff);
   font: var(--MH-Type-Body-Base);

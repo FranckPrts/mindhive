@@ -571,6 +571,18 @@ export const Profile = list({
       ref: "Log.user",
       many: true,
     }),
+    tickets: relationship({
+      ref: "Ticket.reporter",
+      many: true,
+    }),
+    ticketAnnotations: relationship({
+      ref: "TicketAnnotation.author",
+      many: true,
+    }),
+    assignedTickets: relationship({
+      ref: "Ticket.assignee",
+      many: true,
+    }),
     // YQ-related properties
     visuals: relationship({ ref: "Visual.author", many: true }),
     collaboratorInVisual: relationship({ ref: "Visual.collaborators", many: true }),

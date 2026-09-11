@@ -89,7 +89,7 @@ const Card = styled.div`
   padding: 24px;
   border-radius: 16px;
   background: #ffffff;
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #E6E6E6);
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
 
   h2 {
     margin: 0;
@@ -158,7 +158,7 @@ const RankFormHeader = styled.div`
   min-width: 0;
   box-sizing: border-box;
   border-radius: 12px;
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #E6E6E6);
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
   padding: 8px 16px;
   margin-bottom: 8px;
   background: var(--MH-Theme-Neutrals-White, #ffffff);
@@ -316,7 +316,7 @@ function RankFormChrome({
       <IconButton
         variant="tonal"
         style={{
-          background: "var(--MH-Theme-Neutrals-Lighter, #F3F3F3)",
+          background: "var(--MH-Theme-Neutrals-Lighter, #f3f3f3)",
         }}
         ariaLabel={backLabel}
         title={backLabel}

@@ -43,7 +43,7 @@ const RankRow = styled.div`
   gap: 12px;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #e6e6e6);
+  border: 1px solid var(--MH-Theme-Neutrals-Light, #e6e6e6);
   background: var(--MH-Theme-Neutrals-White, #ffffff);
   min-width: 0;
 
@@ -142,7 +142,7 @@ const VideoThumbButton = styled.button`
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  background: var(--MH-Theme-Neutrals-Medium, #e6e6e6);
+  background: var(--MH-Theme-Neutrals-Light, #e6e6e6);
 
   img {
     width: 100%;
@@ -232,7 +232,7 @@ const NoteField = styled.textarea`
   min-height: 40px;
   max-height: 160px;
   padding: 8px 10px;
-  border: 1px solid var(--MH-Theme-Neutrals-Medium, #d3dae0);
+  border: 1px solid #d3dae0;
   border-radius: 8px;
   background: var(--MH-Theme-Neutrals-White, #ffffff);
   font: var(--MH-Type-Body-Base, 400 14px/20px "Inter", sans-serif);

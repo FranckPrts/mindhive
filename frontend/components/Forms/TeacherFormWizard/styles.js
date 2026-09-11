@@ -99,7 +99,7 @@ export const StepMeta = styled.p`
   margin: 0;
   font: var(--MH-Type-Body-Base);
   letter-spacing: 0;
-  color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+  color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
 `;
 
 export const FieldStack = styled.div`
@@ -116,14 +116,14 @@ export const FieldStack = styled.div`
   .field-hint {
     font: var(--MH-Type-Body-Base);
     letter-spacing: 0;
-    color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+    color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
   }
 
   input,
   textarea {
     font: var(--MH-Type-Label-Base);
     letter-spacing: 0;
-    border: 2px solid var(--MH-Theme-Neutrals-Light, #d3dae0);
+    border: 2px solid #d3dae0;
     border-radius: 8px;
     padding: 9px 11px;
     color: var(--MH-Theme-Neutrals-Black, #171717);
@@ -187,7 +187,7 @@ export const QuestionBlock = styled.div`
 `;
 
 export const QuestionCard = styled.div`
-  border: 1px solid var(--MH-Theme-Neutrals-Light, #d3dae0);
+  border: 1px solid #d3dae0;
   border-radius: 12px;
   padding: 12px 14px;
   background: #fff;
@@ -250,7 +250,7 @@ export const TypeOption = styled.span`
   .type-option-hint {
     font: var(--MH-Type-Body-Base);
     letter-spacing: 0;
-    color: var(--MH-Theme-Neutrals-Dark, #5f6871);
+    color: var(--MH-Theme-Neutrals-Grey-2, #5f6871);
   }
 `;
 
@@ -400,7 +400,7 @@ export const CloneList = styled.div`
 
 export const CloneRow = styled.button`
   text-align: left;
-  border: 1px solid var(--MH-Theme-Neutrals-Light, #d3dae0);
+  border: 1px solid #d3dae0;
   border-radius: 10px;
   background: #fff;
   padding: 10px 12px;

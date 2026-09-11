@@ -64,6 +64,13 @@ import updateTemplateMilestone from "./updateTemplateMilestone";
 import deleteTemplateMilestone from "./deleteTemplateMilestone";
 import backfillLinkActionCardsToMilestones from "./backfillLinkActionCardsToMilestones";
 import backfillLowercaseKeys from "./backfillLowercaseKeys";
+import backfillTicketPermissions from "./backfillTicketPermissions";
+import pruneTicketScreenshots from "./pruneTicketScreenshots";
+import closeTicketsFromCommit from "./closeTicketsFromCommit";
+import ticketForAgent from "./ticketForAgent";
+import supportTicketPreviews from "./supportTicketPreviews";
+import backfillTicketScreenshotsToNotion from "./backfillTicketScreenshotsToNotion";
+import backfillSupportTicketsToNotion from "./backfillSupportTicketsToNotion";
 import backfillProjectBoardFormScope from "./backfillProjectBoardFormScope";
 import backfillProposalBoardPublicIds from "./backfillProposalBoardPublicIds";
 import syncClassTemplateBoards from "./syncClassTemplateBoards";
@@ -84,6 +91,36 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         id: ID!
         updatedCloneCount: Int!
         errors: [String!]!
+      }
+      input TicketCommitInput {
+        sha: String
+        message: String
+      }
+      type CloseTicketsFromCommitResult {
+        closed: [String!]!
+        skipped: [String!]!
+      }
+      type BackfillTicketScreenshotsResult {
+        dryRun: Boolean!
+        results: [String!]!
+      }
+      type BackfillSupportTicketsResult {
+        dryRun: Boolean!
+        results: [String!]!
+      }
+      type PruneTicketScreenshotsResult {
+        dryRun: Boolean!
+        retentionDays: Int!
+        cutoff: String!
+        prunedCount: Int!
+        pruned: [String!]!
+        orphanCount: Int!
+        orphans: [String!]!
+      }
+      type BackfillTicketPermissionsResult {
+        dryRun: Boolean!
+        changes: [String!]!
+        holders: [String!]!
       }
       type ToggleFavoriteOpportunityResult {
         isFavorite: Boolean!
@@ -266,6 +303,34 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         # default; pass dryRun:false to apply. Returns a list of change
         # descriptions for the log.
         backfillLowercaseKeys(dryRun: Boolean): [String!]!
+        backfillTicketPermissions(
+          dryRun: Boolean
+        ): BackfillTicketPermissionsResult!
+        # secret stands in for a session so a scheduled job can run this;
+        # omit it and a canManageTickets session is required instead.
+        pruneTicketScreenshots(
+          dryRun: Boolean
+          secret: String
+        ): PruneTicketScreenshotsResult!
+        # One-off catch-up: upload screenshots to Notion for tickets mirrored
+        # before screenshots were. Idempotent; dry-run by default.
+        backfillTicketScreenshotsToNotion(
+          dryRun: Boolean
+          secret: String
+        ): BackfillTicketScreenshotsResult!
+        # Catch-up after scripts/setup-notion-support-relation.js: link the
+        # support tickets saved before the relation existed. Adds only;
+        # dry-run by default.
+        backfillSupportTicketsToNotion(
+          dryRun: Boolean
+          secret: String
+        ): BackfillSupportTicketsResult!
+        # Called by CI, authenticated by a shared secret rather than a
+        # session. See mutations/closeTicketsFromCommit.ts.
+        closeTicketsFromCommit(
+          secret: String!
+          commits: [TicketCommitInput!]!
+        ): CloseTicketsFromCommitResult!
         # One-shot: relocate auto-provisioned FormDefinitions (created
         # by createTemplateMilestone before project_board scope existed)
         # from scope=global to scope=project_board with proposalBoard
@@ -326,7 +391,43 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         email: String
         classNetwork: NetworkInviteContextNetwork
       }
+      # state: ok | not-support | not-visible | invalid | unchecked.
+      # See previewSupportTickets in lib/notionMirror.ts.
+      type SupportTicketPreview {
+        url: String!
+        pageId: String
+        title: String
+        state: String!
+      }
+      type AgentTicket {
+        id: ID!
+        title: String!
+        surface: String!
+        kind: String
+        status: String
+        priority: String
+        description: String
+        evidence: JSON
+        figmaDesignUrl: String
+        figmaNodeId: String
+        reporter: String
+        createdAt: String
+        resolvedAt: String
+        """
+        Whether a capture exists. The image itself is never returned to a
+        tool — see mutations/ticketForAgent.ts.
+        """
+        hasScreenshot: Boolean!
+      }
+
       extend type Query {
+        """
+        One ticket, for a CLI or agent with no session. Shared-secret
+        authenticated, read-only, single-id. See mutations/ticketForAgent.ts.
+        """
+        ticketForAgent(secret: String!, id: ID!): AgentTicket
+        # What pasted support-ticket links point at. canManageTickets only.
+        supportTicketPreviews(urls: [String!]!): [SupportTicketPreview!]!
         resolveMilestonesForBoard(boardId: ID!): [Milestone!]!
         # Resolve the most-specific published FormDefinition for the
         # current viewer's scope. Pass any subset of the scope IDs the
@@ -384,6 +485,8 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
     resolvers: {
       Opportunity: opportunityMultiselectResolvers,
       Query: {
+        ticketForAgent,
+        supportTicketPreviews,
         resolveFormDefinition,
         resolveMilestonesForBoard,
         networkInviteContext,
@@ -444,6 +547,11 @@ export const extendGraphqlSchema = (schema: GraphQLSchema) =>
         backfillMilestoneStatus,
         backfillLinkActionCardsToMilestones,
         backfillLowercaseKeys,
+        backfillTicketPermissions,
+        pruneTicketScreenshots,
+        closeTicketsFromCommit,
+        backfillTicketScreenshotsToNotion,
+        backfillSupportTicketsToNotion,
         backfillProjectBoardFormScope,
         backfillProposalBoardPublicIds,
         backfillClassNetworkPublicIds,
