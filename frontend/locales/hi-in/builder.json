@@ -112,6 +112,7 @@
 		"downloadAggregated": "एकत्रित डेटा डाउनलोड करें",
 		"downloadAggregatedBy": "एकत्रित डेटा डाउनलोड करें {{by}}",
 		"downloadRaw": "कच्चा डेटा डाउनलोड करें",
+		"downloadFailed": "कच्चा डेटा डाउनलोड नहीं किया जा सका।",
 		"noSubtitle": "कोई उपशीर्षक नहीं",
 		"selectTasks": "कार्य या सर्वेक्षण चुनें",
 		"wait": "इंतज़ार ..."
@@ -272,6 +273,7 @@
 			"untitled": "शीर्षकहीन"
 		},
 		"datasetForm": {
+			"uploadFailed": "फ़ाइल अपलोड नहीं की जा सकी।",
 			"actions": {
 				"cancel": "रद्द करना",
 				"create": "डेटासेट बनाएं"

@@ -82,6 +82,7 @@ async function buildResultManageFilter(session, isAdmin, context) {
 }
 
 module.exports = {
+  researcherStudyIds,
   researcherStudyClause,
   buildResultAccessFilter,
   buildResultManageFilter,

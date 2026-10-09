@@ -34,6 +34,13 @@ export default function DownloadRawData({
     };
 
     const response = await fetch(`/api/download/rawfiles`, requestOptions);
+    if (!response.ok) {
+      alert(
+        t("byComponent.downloadFailed", "The raw data could not be downloaded.")
+      );
+      setLoading(false);
+      return;
+    }
     const data = await response.json();
 
     const rows = data

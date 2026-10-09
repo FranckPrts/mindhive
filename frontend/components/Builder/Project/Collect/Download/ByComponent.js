@@ -189,6 +189,13 @@ export default function DownloadByComponent({
       body: JSON.stringify({ fileDirs }),
     };
     const response = await fetch(`/api/download/rawfiles`, requestOptions);
+    if (!response.ok) {
+      alert(
+        t("byComponent.downloadFailed", "The raw data could not be downloaded.")
+      );
+      setLoadingRaw(false);
+      return;
+    }
     const data = await response.json();
 
     const downloadPromises = selected.map(async (taskId) => {

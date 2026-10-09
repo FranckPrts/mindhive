@@ -112,6 +112,7 @@
 		"downloadAggregated": "Geaggregeerde gegevens downloaden",
 		"downloadAggregatedBy": "Geaggregeerde gegevens downloaden {{by}}",
 		"downloadRaw": "Ruwe gegevens downloaden",
+		"downloadFailed": "De ruwe gegevens konden niet worden gedownload.",
 		"noSubtitle": "geen ondertitel",
 		"selectTasks": "Selecteer taken of enquêtes",
 		"wait": "Wachten ..."
@@ -272,6 +273,7 @@
 			"untitled": "Zonder titel"
 		},
 		"datasetForm": {
+			"uploadFailed": "Het bestand kon niet worden geüpload.",
 			"actions": {
 				"cancel": "Annuleren",
 				"create": "Gegevensset maken"

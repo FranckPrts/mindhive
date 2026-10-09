@@ -307,6 +307,24 @@ async function memberClassIds(context: any): Promise<string[]> {
 }
 
 /**
+ * Classes whose Datasources the session user may read: the classes they belong
+ * to and the peer classes in those classes' networks (the Data Journal's "my
+ * class" and "class network" scopes).
+ */
+export function datasourceClassIds(context: any): Promise<string[]> {
+  const me = context?.session?.itemId;
+  if (!me) return Promise.resolve([]);
+  return cachedIds(context, "datasourceClasses", async () => {
+    const memberIds = await memberClassIds(context);
+    if (!memberIds.length) return [];
+    const peerIds = await findIds(context, "Class", {
+      networks: { some: { classes: { some: { id: { in: memberIds } } } } },
+    });
+    return [...new Set([...memberIds, ...peerIds])];
+  });
+}
+
+/**
  * Ids of class networks the session user is connected to: creator, admin,
  * member profile, public networks, and networks of their classes.
  */

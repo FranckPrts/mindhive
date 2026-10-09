@@ -7,6 +7,10 @@ import {
   checkbox,
   select,
 } from "@keystone-6/core/fields";
+import { datasourceClassIds, isAdmin } from "../access";
+const {
+  buildDatasourceAccessFilter,
+} = require("../lib/runtime/datasourceAccess");
 
 function addConnectIds(
   ids: Set<string>,
@@ -28,6 +32,17 @@ export const Datasource = list({
       create: ({ session }) => !!session?.itemId,
       update: ({ session }) => !!session?.itemId,
       delete: ({ session }) => !!session?.itemId,
+    },
+    filter: {
+      // Content holds the address of the uploaded/modified data file, which
+      // /api/data serves to whoever can read the Datasource.
+      query: ({ session, context }: any) =>
+        buildDatasourceAccessFilter(
+          session,
+          isAdmin({ session }),
+          context,
+          datasourceClassIds
+        ),
     },
     item: {
       update: async ({ session, item, context }) => {

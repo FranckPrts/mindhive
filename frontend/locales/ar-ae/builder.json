@@ -112,6 +112,7 @@
 		"downloadAggregated": "تنزيل البيانات المجمعة",
 		"downloadAggregatedBy": "تنزيل البيانات المجمعة {{by}}",
 		"downloadRaw": "تنزيل البيانات الخام",
+		"downloadFailed": "تعذّر تنزيل البيانات الخام.",
 		"noSubtitle": "لا يوجد عنوان فرعي",
 		"selectTasks": "حدد المهام أو الاستطلاعات",
 		"wait": "انتظر ..."
@@ -272,6 +273,7 @@
 			"untitled": "بدون عنوان"
 		},
 		"datasetForm": {
+			"uploadFailed": "تعذّر رفع الملف.",
 			"actions": {
 				"cancel": "يلغي",
 				"create": "إنشاء مجموعة بيانات"

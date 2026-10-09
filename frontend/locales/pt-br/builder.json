@@ -112,6 +112,7 @@
 		"downloadAggregated": "Baixar dados agregados",
 		"downloadAggregatedBy": "Baixar dados agregados {{por}}",
 		"downloadRaw": "Baixar dados brutos",
+		"downloadFailed": "Não foi possível baixar os dados brutos.",
 		"noSubtitle": "sem legenda",
 		"selectTasks": "Selecionar tarefas ou pesquisas",
 		"wait": "Espere ..."
@@ -272,6 +273,7 @@
 			"untitled": "Sem título"
 		},
 		"datasetForm": {
+			"uploadFailed": "Não foi possível enviar o arquivo.",
 			"actions": {
 				"cancel": "Cancelar",
 				"create": "Criar conjunto de dados"

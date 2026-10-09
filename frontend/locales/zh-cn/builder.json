@@ -112,6 +112,7 @@
 		"downloadAggregated": "下载汇总数据",
 		"downloadAggregatedBy": "下载汇总数据 {{by}}",
 		"downloadRaw": "下载原始数据",
+		"downloadFailed": "无法下载原始数据。",
 		"noSubtitle": "没有字幕",
 		"selectTasks": "选择任务或调查",
 		"wait": "等待 ..."
@@ -272,6 +273,7 @@
 			"untitled": "无标题"
 		},
 		"datasetForm": {
+			"uploadFailed": "无法上传文件。",
 			"actions": {
 				"cancel": "取消",
 				"create": "创建数据集"

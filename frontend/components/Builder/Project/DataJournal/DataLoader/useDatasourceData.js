@@ -7,7 +7,12 @@ import useTranslation from "next-translate/useTranslation";
 import { STUDY_SUMMARY_RESULTS } from "../../../../Queries/SummaryResult";
 import buildAggregateColumns from "../../../../../lib/yqParticipantAggregates";
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+// A refused or missing file throws, so it surfaces as the loader's error.
+const fetcher = (url) =>
+  fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`Could not load the data (${res.status})`);
+    return res.json();
+  });
 
 export function processRawData({
   rawdata,
@@ -218,7 +223,7 @@ export default function useDatasourceData({ datasource, user }) {
     modAddr?.month != null &&
     modAddr?.day != null &&
     modAddr?.token
-      ? `/api/data/${modAddr.year}/${modAddr.month}/${modAddr.day}/${modAddr.token}?type=modified`
+      ? `/api/data/${modAddr.year}/${modAddr.month}/${modAddr.day}/${modAddr.token}?type=modified&datasource=${id}`
       : null;
 
   const { data: modifiedStudyFileRaw, error: modifiedStudyFileErr } = useSWR(
@@ -238,7 +243,7 @@ export default function useDatasourceData({ datasource, user }) {
     uploadedAddr?.month != null &&
     uploadedAddr?.day != null &&
     uploadedAddr?.token
-      ? `/api/data/${uploadedAddr.year}/${uploadedAddr.month}/${uploadedAddr.day}/${uploadedAddr.token}?type=${uploadType}`
+      ? `/api/data/${uploadedAddr.year}/${uploadedAddr.month}/${uploadedAddr.day}/${uploadedAddr.token}?type=${uploadType}&datasource=${id}`
       : null;
 
   const { data: uploadedFileRaw, error: uploadedFileErr } = useSWR(

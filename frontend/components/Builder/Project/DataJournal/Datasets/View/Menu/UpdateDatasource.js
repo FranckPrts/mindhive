@@ -1,73 +1,32 @@
 import { useRef } from "react";
 import { useMutation } from "@apollo/client";
-import { customAlphabet } from "nanoid";
 
 import {
   CREATE_DATASOURCE,
   UPDATE_DATASOURCE,
 } from "../../../../../../Mutations/Datasource";
 
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 7);
-
-async function postDataFile({ year, month, day, content }) {
-  const metadata = {
-    id: content.token,
-    payload: "modified",
-    timestampUploaded: Date.now(),
-  };
-
-  const dataFile = {
-    metadata: {
-      ...metadata,
+// Stores the data file through /api/datasource/save, which picks its address:
+// the Datasource's current file when `datasourceId` names one the caller may
+// edit (a template copy's first save gets its own file), else a new one.
+async function postDataFile({ datasourceId, content }) {
+  const res = await fetch(`/api/datasource/save`, {
+    method: "POST",
+    body: JSON.stringify({
+      payload: "modified",
+      datasourceId,
       variables: content.variables,
       settings: content.settings,
-    },
-    data: content.data,
-  };
-
-  const res = await fetch(`/api/save?y=${year}&m=${month}&d=${day}`, {
-    method: "POST",
-    body: JSON.stringify(dataFile),
+      data: content.data,
+    }),
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
     },
   });
-  return { res, metadata };
-}
-
-function resolveSaveAddress(dataset) {
-  const address =
-    dataset?.content?.[dataset?.content?.isModified ? "modified" : "uploaded"]
-      ?.address;
-
-  const isTemplateData =
-    dataset?.dataOrigin === "TEMPLATE" &&
-    !dataset?.content?.isTemplateModified;
-
-  if (
-    address &&
-    address?.year != null &&
-    address?.month != null &&
-    address?.day != null &&
-    address?.token &&
-    !isTemplateData
-  ) {
-    return {
-      year: address.year,
-      month: address.month,
-      day: address.day,
-      token: address.token,
-    };
-  }
-
-  const curDate = new Date();
-  return {
-    year: parseInt(curDate.getFullYear(), 10),
-    month: parseInt(curDate.getMonth(), 10) + 1,
-    day: parseInt(curDate.getDate(), 10),
-    token: nanoid(),
-  };
+  if (!res.ok) return { res };
+  const { address, metadata } = await res.json();
+  return { res, address, metadata };
 }
 
 /**
@@ -117,14 +76,9 @@ export function useDatasetSaveOrCopy({
     const currentContent = contentRef.current;
     const alerts = tAlertsRef.current;
 
-    const { year, month, day, token } = resolveSaveAddress(currentDataset);
-
-    const { res, metadata } = await postDataFile({
-      year,
-      month,
-      day,
+    const { res, address, metadata } = await postDataFile({
+      datasourceId: currentDataset?.id,
       content: {
-        token,
         variables: currentContent?.modified?.variables,
         settings: currentContent?.modified?.settings,
         data: currentContent?.modified?.data,
@@ -145,7 +99,7 @@ export function useDatasetSaveOrCopy({
       isModified: true,
       isTemplateModified: currentDataset?.dataOrigin === "TEMPLATE",
       modified: {
-        address: { year, month, day, token },
+        address,
         metadata,
       },
     };
@@ -197,18 +151,8 @@ export function useDatasetSaveOrCopy({
     const currentContent = contentRef.current;
     const alerts = tAlertsRef.current;
 
-    const curDate = new Date();
-    const year = parseInt(curDate.getFullYear(), 10);
-    const month = parseInt(curDate.getMonth(), 10) + 1;
-    const day = parseInt(curDate.getDate(), 10);
-    const token = nanoid();
-
-    const { res, metadata } = await postDataFile({
-      year,
-      month,
-      day,
+    const { res, address, metadata } = await postDataFile({
       content: {
-        token,
         variables: currentContent?.modified?.variables,
         settings: currentContent?.modified?.settings,
         data: currentContent?.modified?.data,
@@ -238,7 +182,7 @@ export function useDatasetSaveOrCopy({
         isModified: true,
         isTemplateModified: currentDataset?.dataOrigin === "TEMPLATE",
         modified: {
-          address: { year, month, day, token },
+          address,
           metadata,
         },
       },

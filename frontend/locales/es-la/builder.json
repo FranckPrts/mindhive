@@ -112,6 +112,7 @@
 		"downloadAggregated": "Descargar datos agregados",
 		"downloadAggregatedBy": "Descargar datos agregados {{by}}",
 		"downloadRaw": "Descargar datos sin procesar",
+		"downloadFailed": "No se pudieron descargar los datos sin procesar.",
 		"noSubtitle": "sin subtítulos",
 		"selectTasks": "Seleccionar tareas o encuestas",
 		"wait": "Esperar ..."
@@ -272,6 +273,7 @@
 			"untitled": "Intitulado"
 		},
 		"datasetForm": {
+			"uploadFailed": "No se pudo subir el archivo.",
 			"actions": {
 				"cancel": "Cancelar",
 				"create": "Crear conjunto de datos"

@@ -1,6 +1,5 @@
 // Add/DatasetForm.js
 import Papa from "papaparse";
-import { customAlphabet } from "nanoid";
 import { useMemo, useState } from "react";
 import useTranslation from "next-translate/useTranslation";
 
@@ -15,7 +14,6 @@ import {
   normalizeRowKeys,
 } from "../../../../../../lib/normalizeVariableName";
 
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 7);
 
 export default function DatasetForm({
   datasetName,
@@ -159,38 +157,30 @@ export default function DatasetForm({
           editable: true,
         }));
 
-        const metadata = {
-          id: nanoid(),
-          payload: "upload",
-          timestampUploaded: Date.now(),
-          variables: variables,
-        };
-
-        const dataFile = {
-          metadata,
-          data: normalizedData,
-        };
-
-        const curDate = new Date();
-        const date = {
-          year: parseInt(curDate.getFullYear()),
-          month: parseInt(curDate.getMonth()) + 1,
-          day: parseInt(curDate.getDate()),
-        };
-
-        await fetch(`/api/save?y=${date.year}&m=${date.month}&d=${date.day}`, {
+        // the server picks the file's address and returns it
+        const res = await fetch(`/api/datasource/save`, {
           method: "POST",
-          body: JSON.stringify(dataFile),
+          body: JSON.stringify({
+            payload: "upload",
+            variables,
+            data: normalizedData,
+          }),
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
           },
         });
-
-        const fileAddress = {
-          ...date,
-          token: metadata?.id,
-        };
+        if (!res.ok) {
+          alert(
+            t(
+              "dataJournal.datasetForm.uploadFailed",
+              {},
+              { default: "The file could not be uploaded." }
+            )
+          );
+          return;
+        }
+        const { address: fileAddress, metadata } = await res.json();
 
         mutationVariables.data.content = {
           uploaded: {

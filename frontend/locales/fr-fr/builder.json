@@ -112,6 +112,7 @@
 		"downloadAggregated": "Télécharger les données agrégées",
 		"downloadAggregatedBy": "Télécharger les données agrégées {{by}}",
 		"downloadRaw": "Télécharger les données brutes",
+		"downloadFailed": "Les données brutes n'ont pas pu être téléchargées.",
 		"noSubtitle": "pas de sous-titres",
 		"selectTasks": "Sélectionnez des tâches ou des enquêtes",
 		"wait": "Attendez ..."
@@ -272,6 +273,7 @@
 			"untitled": "Sans titre"
 		},
 		"datasetForm": {
+			"uploadFailed": "Le fichier n'a pas pu être téléversé.",
 			"actions": {
 				"cancel": "Annuler",
 				"create": "Créer un jeu de données"

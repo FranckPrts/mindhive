@@ -12,8 +12,14 @@ import useTranslation from "next-translate/useTranslation";
 
 import buildAggregateColumns from "../../../../../../lib/yqParticipantAggregates";
 
-// A fetcher function to wrap the native fetch function and return the result of a call to url in json format
-const fetcher = (url) => fetch(url).then((res) => res.json());
+// A fetcher function to wrap the native fetch function and return the result of a call to url in json format.
+// A refused or missing file throws, so SWR shows the error state instead of
+// parsing the error body as data.
+const fetcher = (url) =>
+  fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`Could not load the data (${res.status})`);
+    return res.json();
+  });
 
 // Export the raw status keys for use in other components
 export const studyStatusKeys = {

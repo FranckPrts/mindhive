@@ -112,6 +112,7 @@
 		"downloadAggregated": "Download aggregated data",
 		"downloadAggregatedBy": "Download aggregated data {{by}}",
 		"downloadRaw": "Download raw data",
+		"downloadFailed": "The raw data could not be downloaded.",
 		"noSubtitle": "no subtitle",
 		"selectTasks": "Select tasks or surveys",
 		"wait": "Wait ..."
@@ -283,6 +284,7 @@
 		},
 		"dataSourceGroup": "{{task}} · Data sources",
 		"datasetForm": {
+			"uploadFailed": "The file could not be uploaded.",
 			"actions": {
 				"cancel": "Cancel",
 				"create": "Create dataset"
